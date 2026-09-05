@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+  <title>TCG Battle Simulator Mobile Supported</title>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --board-bg: #121520;
+      --zone-border: #2e354f;
+      --accent: #7aa2f7;
+      --life-accent: #ff9e64;
+      --token-accent: #bb9af7;
+    }
+
+    * { 
+      box-sizing: border-box; margin: 0; padding: 0; user-select: none; 
+      -webkit-user-select: none; -webkit-touch-callout: none;
+      font-family: 'Segoe UI', Tahoma, sans-serif; 
+    }
+    body { background-color: var(--bg); color: #fff; overflow: hidden; height: 100vh; display: flex; flex-direction: column; touch-action: auto; }
+
+    #lobby {
+      position: absolute; inset: 0; background: rgba(9, 10, 15, 0.95);
+      display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .lobby-box { background: #1a1c2a; padding: 20px; border-radius: 12px; border: 1px solid var(--accent); width: 90%; max-width: 380px; }
+    .lobby-box h2 { font-size: 18px; margin-bottom: 12px; color: var(--accent); text-align: center; }
+    .lobby-box input { width: 100%; padding: 10px; margin-bottom: 10px; background: #0f1015; border: 1px solid #3b4261; border-radius: 6px; color: #fff; font-size: 14px; }
+    .btn { width: 100%; padding: 12px; background: var(--accent); color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 8px; font-size: 14px; }
+    .btn-secondary { background: #3b4261; color: #fff; }
+    .btn-token { background: var(--token-accent); color: #000; }
+    .btn-xs { padding: 3px 5px; font-size: 9px; background: var(--life-accent); color: #000; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; }
+
+    #control-bar {
+      position: fixed; top: 10px; left: 10px; z-index: 200; display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .btn-mode {
+      padding: 8px 12px; background: #e0af68; color: #000; font-weight: bold; border: 2px solid #fff; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-size: 12px;
+    }
+    .btn-mode.active { background: #f7768e; color: #fff; border-color: #f7768e; }
+    .btn-surrender { background: #f7768e; color: #fff; }
+
+    #arena {
+      flex: 1; perspective: 1000px; display: flex; justify-content: center; align-items: center; overflow: auto; background: radial-gradient(circle, #1a1d2e 0%, #090a0f 100%);
+      padding: 60px 20px 110px 20px; -webkit-overflow-scrolling: touch;
+    }
+    #board {
+      width: 1000px; height: 620px; background: var(--board-bg); border: 3px solid #2ac3de; border-radius: 16px;
+      transform: rotateX(20deg); transform-style: preserve-3d; display: flex; flex-direction: column; justify-content: space-between; padding: 8px; position: relative;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8); transition: transform 0.3s; flex-shrink: 0; margin: auto;
+    }
+    #board.flat-mode { transform: rotateX(0deg) !important; }
+
+    .player-side { display: flex; flex-direction: column; gap: 6px; position: relative; width: 100%; }
+    .opponent-side { transform: rotate(180deg); }
+
+    .row-battle { display: flex; justify-content: center; height: 105px; gap: 6px; border: 1px dashed var(--zone-border); border-radius: 8px; padding: 4px; position: relative; }
+    .row-middle { display: flex; gap: 6px; height: 95px; align-items: center; }
+    .row-energy-strip { display: flex; gap: 6px; height: 90px; border: 1px dashed #3d59a1; border-radius: 6px; padding: 4px; background: rgba(61, 89, 161, 0.05); overflow-x: auto; flex: 1; align-items: center; }
+
+    .zone {
+      border: 1px solid var(--zone-border); border-radius: 6px; background: rgba(255,255,255,0.02);
+      display: flex; align-items: center; justify-content: center; position: relative; font-size: 10px; color: #565f89; text-align: center;
+    }
+    .zone-title { position: absolute; top: 2px; left: 4px; font-size: 8px; opacity: 0.6; pointer-events: none; }
+
+    .deck-zone { width: 65px; height: 90px; cursor: pointer; flex-direction: column; gap: 2px; flex-shrink: 0; position: relative; }
+    .lord-zone { width: 65px; height: 90px; border-color: #bb9af7; flex-shrink: 0; }
+    .nexus-zone { flex: 1; display: flex; gap: 6px; padding: 4px; overflow-x: auto; height: 90px; }
+    
+    .life-zone-container { 
+      display: flex; gap: 4px; width: 180px; padding: 4px; 
+      overflow-x: auto; overflow-y: hidden; height: 90px; align-items: center;
+    }
+
+    .deck-visual {
+      width: 58px; height: 82px; border-radius: 5px;
+      background-image: url('https://raw.githubusercontent.com/owlwhite1m-code/Card-game-Nexus-War-/main/images/card_back.jpg');
+      background-size: cover; border: 1px solid #fff; transition: all 0.2s; position: relative;
+    }
+    .deck-count-badge {
+      position: absolute; bottom: 3px; right: 3px; background: #7aa2f7; color: #000;
+      font-weight: bold; font-size: 10px; padding: 1px 5px; border-radius: 8px; z-index: 10;
+    }
+
+    .graveyard-stack { position: relative; width: 65px; height: 90px; cursor: pointer; }
+    .graveyard-stack .card { position: absolute; top: 0; left: 0; transform: rotate(0deg) !important; }
+    .graveyard-count { position: absolute; bottom: 2px; right: 2px; background: #f7768e; color: #000; font-weight: bold; font-size: 10px; padding: 1px 5px; border-radius: 10px; z-index: 10; }
+
+    .card {
+      width: 58px; height: 82px; background-size: cover; background-position: center; border-radius: 5px;
+      border: 1px solid #fff; cursor: pointer; position: relative; transition: transform 0.15s, box-shadow 0.3s, border-color 0.3s; background-color: #1a1b26;
+      transform: rotate(0deg); flex-shrink: 0; z-index: 5; overflow: hidden;
+    }
+    
+    .card.card-lord:not(.card-back) {
+      border: 2px solid #ffd700;
+      box-shadow: 0 0 10px #bb9af7, 0 0 15px #ffd700, inset 0 0 5px #ffd700;
+      animation: lordGlow 2s infinite alternate;
+    }
+    .card.card-elite:not(.card-back) {
+      border: 2px solid #ff0055;
+      box-shadow: 0 0 8px #ff9e64, 0 0 12px #ff0055;
+      animation: eliteGlow 1.5s infinite alternate;
+    }
+
+    /* --- Alt Art Glow & Shine Effect --- */
+    .card.card-alt-art:not(.card-back) {
+      border: 2px solid #00ffff !important;
+      animation: altArtGlow 2s linear infinite !important;
+    }
+    .card.card-alt-art:not(.card-back)::after {
+      content: "";
+      position: absolute;
+      top: -100%;
+      left: -100%;
+      width: 300%;
+      height: 300%;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255, 255, 255, 0.4) 40%,
+        rgba(255, 0, 128, 0.4) 50%,
+        rgba(0, 255, 255, 0.4) 60%,
+        transparent 80%
+      );
+      transform: rotate(25deg);
+      animation: altArtShine 3s infinite linear;
+      pointer-events: none;
+    }
+
+    @keyframes altArtGlow {
+      0% { box-shadow: 0 0 8px #00ffff, 0 0 15px #ff00e4; border-color: #00ffff; }
+      33% { box-shadow: 0 0 12px #ff00e4, 0 0 20px #ffea00; border-color: #ff00e4; }
+      66% { box-shadow: 0 0 12px #ffea00, 0 0 20px #00ff66; border-color: #ffea00; }
+      100% { box-shadow: 0 0 8px #00ffff, 0 0 15px #ff00e4; border-color: #00ffff; }
+    }
+
+    @keyframes altArtShine {
+      0% { transform: translateY(-100%) rotate(25deg); }
+      100% { transform: translateY(100%) rotate(25deg); }
+    }
+
+    @keyframes lordGlow {
+      0% { box-shadow: 0 0 6px #bb9af7, 0 0 10px #ffd700; }
+      100% { box-shadow: 0 0 14px #bb9af7, 0 0 20px #ffd700, 0 0 8px #fff; }
+    }
+    @keyframes eliteGlow {
+      0% { box-shadow: 0 0 5px #ff9e64, 0 0 8px #ff0055; }
+      100% { box-shadow: 0 0 12px #ff9e64, 0 0 16px #ff0055; }
+    }
+
+    .edit-active .card { border: 2px solid #e0af68; box-shadow: 0 0 8px #e0af68; }
+    .card.exhausted { transform: rotate(90deg) !important; }
+    .card-back { background-image: url('https://raw.githubusercontent.com/owlwhite1m-code/Card-game-Nexus-War-/main/images/card_back.jpg') !important; background-size: cover !important; }
+    .energy-card { background-color: #3d59a1; border-color: #7aa2f7; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 8px; color: #fff; }
+    .token-card { border-color: var(--token-accent); box-shadow: 0 0 5px rgba(187, 154, 247, 0.4); }
+
+    .hand-area {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 6px; z-index: 500; padding: 6px 12px; background: rgba(15, 16, 21, 0.95); border-radius: 10px; border: 1px solid var(--accent);
+      max-width: 95vw; overflow-x: auto; min-height: 95px; align-items: center;
+    }
+    #player-hand { bottom: 5px; }
+    #opponent-hand { top: 5px; border-color: #f7768e; }
+    #player-hand .card:active { transform: translateY(-10px) scale(1.1); z-index: 10; }
+
+    #context-menu {
+      position: fixed; display: none; background: #1f2335; border: 1px solid var(--accent); border-radius: 8px; z-index: 4000; box-shadow: 0 4px 16px rgba(0,0,0,0.9); width: 180px; max-height: 80vh; overflow-y: auto;
+    }
+    #context-menu div { padding: 10px 12px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #292e42; color: #fff; }
+    #context-menu div:active { background: var(--accent); color: #000; font-weight: bold; }
+
+    #gy-modal, #token-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1500; display: none;
+      flex-direction: column; align-items: center; justify-content: center; padding: 15px;
+    }
+    .modal-box { background: #1a1c2a; border: 1px solid var(--accent); border-radius: 10px; width: 95%; max-width: 700px; padding: 15px; height: 80vh; display: flex; flex-direction: column; }
+    .modal-cards { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; overflow-y: auto; padding: 10px; margin-top: 10px; background: #0f1015; border-radius: 6px; align-content: flex-start; }
+    
+    .gy-card-wrapper, .token-card-wrapper { display: flex; flex-direction: column; align-items: center; gap: 5px; background: #1f2335; padding: 6px; border-radius: 6px; }
+    .gy-card-actions { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+    .btn-gy-action { font-size: 9px; padding: 4px; background: #3d59a1; border: none; color: white; border-radius: 3px; cursor: pointer; }
+    .btn-gy-action:active { background: var(--accent); color: black; }
+
+    #zoom-modal {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 3000; display: none;
+      justify-content: center; align-items: center; flex-direction: column; cursor: pointer;
+    }
+    /* Zoom Card Element Stylings with Animations Preserved */
+    #zoom-card-frame {
+      width: min(78vw, 422px);
+      height: auto;
+      aspect-ratio: 422 / 573;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(122, 162, 247, 0.5);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+      position: relative;
+      overflow: hidden;
+      transform: none !important;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 600px) {
+      #zoom-card-frame {
+        width: auto;
+        height: min(78vh, 594px);
+        max-width: 88vw;
+      }
+    }
+    #zoom-card-name {
+      margin-top: 12px; font-size: 16px; font-weight: bold; color: var(--accent); text-align: center; background: rgba(15, 16, 21, 0.8); padding: 6px 16px; border-radius: 20px;
+    }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+
+  <div id="control-bar">
+    <button class="btn-mode" id="toggle-edit-btn" onclick="toggleEditMode()">🛠️ เปิดโหมดจัดการการ์ด</button>
+    <button class="btn-mode" style="background:var(--token-accent);" onclick="openTokenModal()">🪙 เรียก Token</button>
+    <button class="btn-mode btn-surrender" onclick="surrender()">🏳️ ยอมแพ้</button>
+  </div>
+
+  <div id="lobby">
+    <div class="lobby-box">
+      <h2>⚔️ TCG Battle Simulator</h2>
+      <input type="text" id="deck-code-input" placeholder="วาง Deck Code จากเว็ปจัดเด็ค">
+      <hr style="border-color:#292e42; margin-bottom:10px;">
+      <button class="btn" id="create-room-btn">สร้างห้องต่อสู้</button>
+      <div id="room-code-display" style="display:none; margin-bottom:10px; text-align:center;">
+        <span id="lobby-status" style="font-size:12px; color:#e0af68; display:block; margin-bottom:5px;"></span>
+        <button class="btn btn-secondary" id="copy-code-btn" style="padding:8px; font-size:12px;" disabled>⏳ กำลังเตรียมรหัสห้อง...</button>
+      </div>
+      <div style="display:flex; gap:5px;">
+        <input type="text" id="room-code-input" placeholder="ใส่ Code ห้องเพื่อน" style="margin:0;">
+        <button class="btn btn-secondary" id="join-room-btn" style="width:110px; margin:0;">เข้าห้อง</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hand-area" id="opponent-hand"></div>
+
+  <div id="arena">
+    <div id="board">
+      
+      <!-- OPPONENT SIDE -->
+      <div class="player-side opponent-side" id="opponent-side">
+        <div class="row-battle zone" id="opp-battlefield"><span class="zone-title">BATTLEFIELD</span></div>
+        <div class="row-energy-strip zone" id="opp-energy-zone"><span class="zone-title">ENERGY ZONE</span></div>
+        <div class="row-middle">
+          <div style="display:flex; gap:5px;">
+            <div class="zone deck-zone"><span class="zone-title">LIFE DECK</span></div>
+            <div class="life-zone-container zone" id="opp-life-zone"><span class="zone-title">LIFE ZONE</span></div>
+          </div>
+          <div class="zone nexus-zone" id="opp-nexus-zone"><span class="zone-title">NEXUS ZONE</span></div>
+          <div class="zone lord-zone" id="opp-lord-zone"><span class="zone-title">LORD</span></div>
+          <div style="display:flex; gap:5px;">
+            <div class="zone deck-zone graveyard-stack" id="opp-graveyard" onclick="openOpponentGraveyardModal()"><span class="zone-title">GRAVEYARD</span></div>
+            <div class="zone deck-zone" id="opp-main-deck-zone">
+              <span class="zone-title">MAIN DECK</span>
+              <div class="deck-visual" id="opp-deck-visual"><span class="deck-count-badge" id="opp-deck-count">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLAYER SIDE -->
+      <div class="player-side" id="player-side">
+        <div class="row-battle zone" id="p-battlefield"><span class="zone-title">BATTLEFIELD</span></div>
+        <div class="row-energy-strip zone" id="p-energy-zone" onclick="addEnergyCard(event)">
+          <span class="zone-title">ENERGY ZONE (แตะพื้นที่ว่างเพิ่ม Energy)</span>
+        </div>
+        <div class="row-middle">
+          <div style="display:flex; gap:5px;">
+            <div class="zone deck-zone" id="p-life-deck" onclick="drawLifeCard()">
+              <span class="zone-title">LIFE DECK</span>
+              <button class="btn-xs" onclick="event.stopPropagation(); shuffleLifeDeck()">สับกอง</button>
+              <button class="btn-xs" onclick="event.stopPropagation(); addLifeCount(1)">+ เพิ่ม</button>
+              <button class="btn-xs" onclick="event.stopPropagation(); addLifeCount(-1)">- ลด</button>
+            </div>
+            <div class="life-zone-container zone" id="p-life-zone"><span class="zone-title">LIFE ZONE</span></div>
+          </div>
+          <div class="zone nexus-zone" id="p-nexus-zone"><span class="zone-title">NEXUS ZONE</span></div>
+          <div class="zone lord-zone" id="p-lord-zone"><span class="zone-title">LORD</span></div>
+          <div style="display:flex; gap:5px;">
+            <div class="zone deck-zone graveyard-stack" id="p-graveyard" onclick="openGraveyardModal()">
+              <span class="zone-title">GRAVEYARD</span>
+              <span class="graveyard-count" id="gy-count">0</span>
+            </div>
+            <div class="zone deck-zone" id="p-main-deck" onclick="drawMainCard()">
+              <span class="zone-title">MAIN DECK</span>
+              <button class="btn-xs" onclick="event.stopPropagation(); shuffleMainDeck()" style="position:absolute; top:2px; right:2px; z-index:15;">🔀 สับเด็ค</button>
+              <div class="deck-visual" id="p-deck-visual">
+                <span class="deck-count-badge" id="p-deck-count">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="hand-area" id="player-hand"></div>
+
+  <!-- Context Menu เมนูแก้ไข -->
+  <div id="context-menu">
+    <div onclick="zoomSelectedCard()">🔍 ดูรูปการ์ดเต็ม</div>
+    <div onclick="toggleCardOrientation()">🔄 จับตั้ง / จับนอน (Exhaust)</div>
+    <div onclick="revealCard()">👁️ หงายหน้า / คว่ำหน้าการ์ด</div>
+    <div onclick="moveSelectedCardTo('p-battlefield')">⚔️ ย้ายไป Battlefield</div>
+    <div onclick="moveSelectedCardTo('p-nexus-zone')">🌀 ย้ายไป Nexus Zone</div>
+    <div onclick="moveSelectedCardTo('p-energy-zone')">⚡ ย้ายไป Energy Zone</div>
+    <div onclick="moveSelectedCardTo('p-life-zone')">❤️ ย้ายไป Life Zone</div>
+    <div onclick="moveSelectedCardTo('p-life-deck')">💔 ย้ายไป Life Deck</div>
+    <div onclick="moveSelectedCardTo('hand')">🖐️ เอาขึ้นมือ</div>
+    <div onclick="moveSelectedCardTo('graveyard')">💀 ทิ้งลงสุสาน</div>
+    <div onclick="removeCardFromGame()" style="color:#f7768e; font-weight:bold;">🚫 นำออกจากเกม (Token)</div>
+  </div>
+
+  <!-- Modal ดูการ์ดในสุสาน -->
+  <div id="gy-modal" onclick="closeGraveyardModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 id="gy-modal-title" style="color:var(--accent); font-size:16px;">💀 สุสาน (Graveyard)</h3>
+        <button class="btn btn-secondary" style="width:70px; margin:0; padding:6px;" onclick="closeGraveyardModal()">ปิด</button>
+      </div>
+      <div class="modal-cards" id="gy-modal-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal เลือก Token -->
+  <div id="token-modal" onclick="closeTokenModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="color:var(--token-accent); font-size:16px;">🪙 เลือกการ์ดโทเคน (Token)</h3>
+        <button class="btn btn-secondary" style="width:70px; margin:0; padding:6px;" onclick="closeTokenModal()">ปิด</button>
+      </div>
+      <div class="modal-cards" id="token-modal-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal ส่องรูปการ์ดเต็ม -->
+  <div id="zoom-modal" onclick="closeZoomModal()">
+    <div id="zoom-card-frame"></div>
+    <div id="zoom-card-name"></div>
+  </div>
+
+  <script>
+    const IMAGE_BASE_URL = "https://raw.githubusercontent.com/owlwhite1m-code/Card-game-Nexus-War-/main/images/";
+
+    const cardDatabase = [
+      { id: "C001", name: "The Grand Overseer-Alaric", type: "LORD", faction: "O.W.I", cost: 0, ap: 2, ar: 4, img: "อะลาติก แก้ไข.jpg", desc: "(สกิลติดตัว) Nexus ทุกใบของคุณ ARMOR +1 (Active : 2/1T) ฟื้นฟู AR+2 Nexus คุณ 1 หน่วย 1ใบ หรือ เพิ่ม AR+2 Army เรา 1 ตัว จนจบเทิร์น ฝั่งตรงข้าม" },
+      { id: "C002", name: "Bunny Bastet Agis", type: "Elite", faction: "O.W.I", cost: 7, ap: 6, ar: 5, img: "bastet.jpg", desc: "[เกราะแตก]: (หากการด์ใบนี้ทำลาย AR ยูนิตศตรูสำเร็จให้ทำดาเมจซ้ำใส่ตัวนั้นอีกรอบลงสนาม: เลือกยูนิต 1 ใบ ทำดาเมจ 3 [ลงสนาม]: เลือกยูนิต 1 ใบ ทำดาเมจ 3" },
+      { id: "C002_ALT", name: "Bunny Bastet Agis (Alt Art)", type: "Elite", faction: "O.W.I", cost: 7, ap: 6, ar: 5, img: "bastet alt art.jpg", desc: "[เกราะแตก]: (หากการด์ใบนี้ทำลาย AR ยูนิตศตรูสำเร็จให้ทำดาเมจซ้ำใส่ตัวนั้นอีกรอบลงสนาม: เลือกยูนิต 1 ใบ ทำดาเมจ 3 [ลงสนาม]: เลือกยูนิต 1 ใบ ทำดาเมจ 3" },
+      { id: "C003", name: "The Bone of us", type: "Action", faction: "O.W.I", cost: 3, ap: 0, ar: 0, img: "bone_of_us.jpg", desc: "[Main/Action] เลือกArmy เรา1ใบฟื้นฟูARเต็ม หากเรา มี Army [Type : O.W.I]สองใบขึ้นไปบนสนาม จั่ว +1" },
+      { id: "C004", name: "เร่ง การก่อสร้าง", type: "Action", faction: "O.W.I", cost: 1, ap: 0, ar: 0, img: "build_fast.jpg", desc: "[Main/Action]เปิดการด์บนกอง 4ใบ นำการด์Nexus [Type :0.W.I] จากในนั้น 1ใบขึ้นมือที่เหลือสับกลับเข้าเด็ค" },
+      { id: "C005", name: "พลก่อสร้าง ตุ้ดตุ่น", type: "Army", faction: "O.W.I", cost: 1, ap: 1, ar: 1, img: "builder.jpg", desc: "[ลงสนาม] : หากคุณมีNexus1 ใบขึ้นไป บนสนาม จัว 1" },
+      { id: "C006", name: "เพโอเทอส นักโทษนิรันด์", type: "Elite", faction: "O.W.I", cost: 10, ap: 8, ar: 9, img: "peotheus.jpg", desc: "[Guard][พิธีกรรม(การอัญเชิญแบบมีเงื่อนไข) จากบนมือทำลายNexus ของเรา 5ใบ เพื่อเรียกการด์ใบนี้ไม่จ่าย Cost[ลงสนาม] หากลงด้วย[พิธีกรรม] สังหาร Armyทุกใบ ที่ AR ไม่เกิน 5" },
+      { id: "C007", name: "ปืนใหญ่ บริษัท HellOwlfont จำกัด", type: "Nexus", faction: "O.W.I", cost: 4, ap: 0, ar: 0, img: "cannon.jpg", desc: "[เมื่อจบเทิร์น] ของเจ้าของ นอนการด์ใบนี้ สร้าง2ดาเมจใส่ Army/Elite ศตรู 1 ใบ" },
+      { id: "C008", name: "รวมพลัง ปูพรมทำลายล้าง", type: "Action", faction: "O.W.I", cost: 4, ap: 0, ar: 0, img: "carpet_bomb.jpg", desc: "[Main/Action] ทำความเสียหาย 1 ใส่ ยูนิตศตรูทุกใบบนสนามฝ่ายตรงข้าม +1 ด้วยตามจำนวนการด์ที่หงายอยู่บน Nexus เรา" },
+      { id: "C009", name: "ไซบอกซ์ แนวปะทะ Forca", type: "Army", faction: "O.W.I", cost: 6, ap: 5, ar: 5, img: "cyborg.jpg", desc: "[ลงสนาม] เลือก Armyศตรู ที่นอนอยู่ ARไม่เกิน 4นำกลับขึ้น มือ 1ใบ, [ติดตัว] AP,AR +1Army/Nexus [Type:O.w.] เรา ทุกใบ" },
+      { id: "C010", name: "อิศวินทมิฬ กลุ่มอีกาเลือด", type: "Army", faction: "O.W.I", cost: 5, ap: 3, ar: 6, img: "darkknight.jpg", desc: "[Guard][สั่งเสีย] เราได้รับ Ex 2 energy ในเทิร์นถัดไป" },
+      { id: "C011", name: "นายช่าง ดราโกคิก", type: "Army", faction: "O.W.I", cost: 3, ap: 3, ar: 4, img: "dragokick.jpg", desc: "[ลงสนาม] : เลือก Nexus หรือ Army 1ใบเพิ่มค่า AP+2, AR+2 ลนจบเทิร์น ฝ่ายตรงข้าม [สั่งเสีย](เมื่อตาย) : เปิด4ใบบนสุดค้นหาการด์Nexus 1ใบ ขึ้นมือ แล้วสับเด็ด" },
+      { id: "C012", name: "จงสู้ เราคือ HellOwlFont !!!", type: "Action", faction: "O.W.I", cost: 7, ap: 0, ar: 0, img: "fight_helloowl.jpg", desc: "เลือกผลของการด์ ดังต่อไปนี้ 1 อย่าง1. เรียก Army 2 ใบ ในสุสาน มาวางบนสนาม2. เรียก Elite ใบในสุสาน มาวางบนสนาม" },
+      { id: "C013", name: "กระบวนท่าสุดท้าย ปลิดชีพ อาลัยวรณ์", type: "Life", faction: "O.W.I", cost: 0, ap: 0, ar: 0, img: "life ปลิดชีฟ.jpg", desc: "หาก Lord เป็น The Grand Overseer-Alaricแล้วไลฟ์การด์คุณเหลือต่ำกว่า 3 ทำลาย ยูนิตศตรู1 ใบ ที่ cost ไม่เกิน 3 หากทำสำเร็จ ทำลายยูนิตศตรู 1ใบ ที่ cost ไม่เกิน 5 หากทำสำเร็จทำลาย Nexus ศตรู 2 ใบ หากทำสำเร็จ ทำดาเมจใส่life card คู่แข่ง 2 ใบ" },
+      { id: "C014", name: "ใหมองแร่พลังงานO.w.I", type: "Nexus", faction: "O.W.I", cost: 3, ap: 0, ar: 0, img: "mine.jpg", desc: "[Active] เมื่อจะมีการจ่าย costจับการด์ใบนี้นอนแทนการจ่าย cost-1" },
+      { id: "C015", name: "กับดัก ทุ่นระเบิด O.w.I B-02", type: "Nexus", faction: "O.W.I", cost: 4, ap: 0, ar: 0, img: "mine_trap.jpg", desc: "[ติดตัว] เมื่อ ยูนิตบนสนามรบเราถูกโจมตีจากยูนิตศตรูการโจมตีนั้น จะถูกลด AP-1 จนจบการต่อสู้" },
+      { id: "C016", name: "หุ่นยนต์ประจันบาน OwlGP-48", type: "Nexus", faction: "O.W.I", cost: 6, ap: 0, ar: 0, img: "owl_gp.jpg", desc: "[Active] จับนอนการด์ใบนี้ แทนการใช้ cost-1 [ติดตัว] เมื่อจบเทริน์ ของเราครบสามครั้ง สามารถเรียกการด์ใบนี้ลง สนาม โดยนับเป็น Army AP5,AR6" },
+      { id: "C017", name: "OwlGuard", type: "Army", faction: "O.W.I", cost: 2, ap: 1, ar: 2, img: "owlguard.jpg", desc: "[Guard] : จับนอนการด์ใบนี้เพื่อย้ายการโจมตีมาที่การด์ใบนี้" },
+      { id: "C018", name: "O.w.I Ranger", type: "Army", faction: "O.W.I", cost: 4, ap: 4, ar: 4, img: "ranger.jpg", desc: "[ลงสนาม]: หากมี Nexus ติด [Type:O.w.I] 2ใบขึ้นไป เลือกการด์ 1ใบ ยกเว้น Lord ทํา 2 ดาเมจ ใส่ [ติดตัว] : หากมีNexus 3ใบขึ้นไป การด์ใบนี้AP+2" },
+      { id: "C019", name: "ทีมเก็บกู้ซาก O.w.l", type: "Life", faction: "O.W.I", cost: 0, ap: 0, ar: 0, img: "ทีม กู้ซาก owl.jpg", desc: "หาก Lord เป็น Type :O.W.I สามารถวาง Nexusจากสุสาน มาวางในโซน Nexus ของเรา โดยไม่จ่ายCost 2ใบ ที่ cost ไม่เกิน 5" },
+      { id: "C020", name: "Healing potion", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "ยาดื่ม.jpg", desc: "นำใบบนสุดของ [Life Deck] มาวางไว้ใต้สุดของ Life zone" },
+      { id: "C021", name: "หลุมดัก คนโง่", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "หลุมดักคน.jpg", desc: "เลือก Army บนสนามของคู่แข่ง 1 ตัวจับการ์ดใบนั้นนอน" },
+      { id: "C022", name: "เจตจำนงแยก ของ Alaric", type: "Life", faction: "O.W.I", cost: 0, ap: 0, ar: 0, img: "เจต ตํานงแยกของ Alaric.jpg", desc: "หาก Lord เป็น The Grand Overseer-Alaric แล้วไลฟ์การด์คุณเหลือต่ำกว่า 5 อัญเชิญ โทเคน [Clone Alaric] [Type : O.W.1] Ap 5 AR 5[ติดตัว1/T] เมื่อการด์ใบนี้ นอน การด์ใบนี้จะ ตั้ง, แต่หากไลฟ์คุณมากกว่า 5 ให้จั่ว 1" },
+      { id: "C023", name: "Shield up", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "ให้โล่.jpg", desc: "เพิ่ม AR ให้ Lord 3 หน่วย" },
+      { id: "C024", name: "Draco phinus", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "Draco phinus.jpg", desc: "หาก lord ของเราคือ [Hadesmocus -Plague bringer-] และคู่แข่งมี การ์ดในสุสาน 15 ใบขึ้นไปนำการ์ดใบนี้ลงสนามรบ โดยมีAtk 5 Shield 6เผ่า Void/มังกร[เมน] เทิร์นละ 1 ครั้ง ทำลาย spore โทเคน 1 ใบ หรือ สังหาร อาร์มี่ของเรา 1 ใบ เพื่อ ทำลาย structure หรือ army ของคู่แข่ง 1 ใบ" },
+      { id: "C025", name: "Harvest soul", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "Havest soul.jpg", desc: "หาก lord ของเราคือ [Hadesmocus -Plague bringer-] และเรามีการ์ดในสุสาน 10 ใบหรือมากกว่าทำลาย Army ทั้งหมดบนสนามของคู่แข่ง" },
+      { id: "C026", name: "Spore Egg", type: "Nexus", faction: "-", cost: 4, ap: 0, ar: 0, img: "Spore Egg.jpg", desc: "{สุสาน}[เมน] ชื่อละ 1 ครั้ง สามารถเล่นการ์ดใบนี้โดยจายค่า Cost ตามปกติได้ จากนั้นทิ้งมือหนึ่งใบ[Ex energy](สามารถจับการ์ดใบนี้นอนเพื่อใช้แทน energy ได้ 1 คอส)[เมน] ทำลายการ์ดใบนี้เพื่อทิ้งใบบนสุดของผู้เล่นทั้ง 2 ฝ่าย 3 ใบ" },
+      { id: "C027", name: "Call of the plague", type: "Action", faction: "-", cost: 2, ap: 0, ar: 0, img: "call of ม่วง.jpg", desc: "สังหารอาร์มี่ของเรา 1 ตัวเพื่อวาง spore บน structure zone ของคู่แข่งได้ 2 ใบ" },
+      { id: "C028", name: "Gate of the void", type: "Nexus", faction: "-", cost: 3, ap: 0, ar: 0, img: "gete way.jpg", desc: "[เมน] เทิร์นละครั้ง จับนอนการ์ดใบนี้และทิ้งมือ 1 ใบ เพื่อ นำการ์ด คอส 4 หรือต่ำกว่าจากสุสานขึ้นมือ[เมื่อจบเทิร์นของเรา] สามารถนำการ์ด 1 ใบที่ไม่ใช่ Elite จากสุสานกลับเข้าใต้กองแล้วนำการ์ดใบนี้ขึ้นมือได้" },
+      { id: "C029", name: "Hadesmocus -Plague bringer-", type: "LORD", faction: "Void", cost: 0, ap: 2, ar: 4, img: "lord ม่วง.jpg", desc: "[เมน] [ด้วยการทิ้งมือหรือสังเวยยูนิทของคุณนอกเหนือจากลอร์ด 1 ใบ วาง token structure 'Spore' ไว้บนสนามของศัตรู[ติดตัว] 'spore' โทเคนทุกใบมีความสามารถ [เมื่อจบเทิร์น]  ทำลายการ์ดใบนี้มันทั้งหมด แล้วทิ้งใบบนสุดของกองการ์ดคุณ 1 ใบ [เมน] สามารถทิ้งมือ 1 ใบเพื่อทำลายการ์ดใบนี้ได้" },
+      { id: "C030", name: "The end is near", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "the end is near.jpg", desc: "หาก lord ของเราคือ [Hadesmocus -Plague bringer-] วาง spore โทเคนบน structure zone ของคู่แข่ง 2 ใบ" },
+      { id: "C031", name: "Infected flower", type: "Army", faction: "ติดเชื้อ/พืช", cost: 3, ap: 2, ar: 1, img: "ดอก ติดเชื้อม่วง.jpg", desc: "[ในเทิร์นคุณ] การใบนี้จะสามารถทำดาเมจจากการต่อสู้ใส่ยูนิทคอส 3 หรือต่ำกว่าได้โดยไม่สนค่า shield[เมื่อจบการโจมตี] สามารถทิ้งใบบนสุดของกองการ์ดคุณ 3 ใบแล้วหยิบการ์ด 1 ใบจากสุสานขึ้นมือได้,  หลังจากนั้นนำการ์ดใบนี้เข้าใต้กองการ์ด" },
+      { id: "C032", name: "Abomination", type: "Army", faction: "ติดเชื้อ/กลายพันธุ์", cost: 10, ap: 9, ar: 6, img: "ตัวยํา ม่วง.jpg", desc: "การ์ดใบนี้มีค่าคอส -1 ตามจำนวนการ์ดในสุสานของผู้เล่นทุกคน ทุกๆ 6 ใบ" },
+      { id: "C033", name: "Rise of the plague", type: "Action", faction: "-", cost: 4, ap: 0, ar: 0, img: "ทหารโทเคน ม่วง.jpg", desc: "[Blink] (สามารถใช้งานเมื่อคู่แข่งโจมตีได้)ลง อาร์มี่โทเคน [remnant' Atk 3 shield 2 ที่มีความสามารถ [guard](จับการ์ดใบนี้นอนเพื่อเปลี่ยนเป้าหมายการโจมตีได้)[เมื่อจบเทิร์นของคู่แข่ง] สามารถทำลายการ์ดใบนี้แล้วทิ้งใบบนสุดของกองการ์ดคุณ 1 ใบ ได้ " },
+      { id: "C034", name: "The infected", type: "Army", faction: "ติดเชื้อ/มนุษย์", cost: 1, ap: 2, ar: 0, img: "ผู้ติดเชี้ย ม่วง.jpg", desc: "[เมื่อถูกสังหาร] ด้วยการทิ้งเด็คของคุณ 2 ใบ หรือทิ้งมือ 1 ใบ วาง 'spore' token ไว้ในสนามของคู่แข่ง" },
+      { id: "C035", name: "Infected tank", type: "Army", faction: "ติดเชื้อ/เครื่องจักร", cost: 5, ap: 6, ar: 4, img: "รถถัง ม่สง.jpg", desc: "[เมน] สามารถสังหารอาร์มี่ของเราหนึ่งตัวเพื่อ สร้างความเสียหาย 3 ดาเมจให้ศัตรู 1 ตัว" },
+      { id: "C036", name: "Floating Spore", type: "Army", faction: "เชื้อรา/ผู้เผยแพร่", cost: 3, ap: 0, ar: 4, img: "รังไข่บิน ม่วง.jpg", desc: "[เมื่อจบเทิร์นของเรา] {สุสาน} เราสามารถ ทำลาย spore โทเคนจากที่ไหนก็ได้ 1 ใบเพื่ออัญเชิญลงมาบนสนามโดยไม่จ่ายคอส[เมน] เทิร์นละครั้ง สามารถทิ้งมือ 1 ใบหรือจ่าย 2 เอเนอจี้เพื่อวาง spore โทเคนลง structure zone ของคู่แข่งได้ 2 ใบ จากนั้น rest การ์ดใบนี้" },
+      { id: "C037", name: "Lurker", type: "Army", faction: "ติดเชื้อ/พืช", cost: 2, ap: 3, ar: 2, img: "ลุกเกอร์ พืช ม่วง.jpg", desc: "[ในเทิร์นคู่แข่ง] เมื่อการ์ดใบนี้จะถูกทำลายสามารถทิ้งมือของคุณ 2 ใบเพื่อวางโทเคน 'spore' ไว้บน structure zone ของคู่แข่งได้, หลังจากนั้นจั่ว 1" },
+      { id: "C038", name: "Worm", type: "Army", faction: "ติดเชื้อ/แมลง", cost: 1, ap: 1, ar: 0, img: "หนอน ม่วง.jpg", desc: "[สั่งเสีย] จั่ว 1 จากนั้นหากมีมือมากกว่า 6 ให้ทิ้งมือ 1 ใบ" },
+      { id: "C039", name: "Camila -Queen of the plague-", type: "Elite", faction: "Void/ ผู้เผยแพร่", cost: 6, ap: 5, ar: 6, img: "อีลิทม่วง แมงมุม.jpg", desc: "การ์ดใบนี้ไม่สามารถถูกนำออกสนามรบได้นอกเหนือจากการสังหารเท่านั้น[เมน] ทำลายโทเคน spore ทั้งหมดบนสนาม เพื่อทิ้งใบบนสุดของคู่แข่งเท่ากับจำนวนที่ทำลายไป" },
+      { id: "C040", name: "Tactical change", type: "Action", faction: "-", cost: 3, ap: 0, ar: 0, img: "เปลี่ยนแผน.jpg", desc: "จั่วการ์ด 2 ใบจากกองการ์ด จากนั้น ทิ้งการ์ดบนมือ 2 ใบ" },
+      { id: "C041", name: "Vultura -chaos knight-", type: "Elite", faction: "Void/โกลาหล", cost: 7, ap: 0, ar: 7, img: "โกเลม ม่วง.jpg", desc: "[ติดตัว] การ์ดใบนี้มี ATK +1 ตามการ์ดในหลุมของคุณทุกๆ 3 ใบ [เมื่อโจมตี] ทิ้งใบบนสุดของกองการ์ดคุณ 4 ใบ วางโทเคน spore บน structure zone ของคู่แข่ง 4 ใบ" },
+      { id: "C042", name: "วิวัฒนาการ UltApex", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "ancient evolution.jpg", desc: "เลือก ยูนิตTyper: ไดโนเสาร์ 1 บนสนามใครก็ได้ใบนำมันกลับเข้าเด็ดเจ้าของ หลังจากนั้น เรียกการd์บนมือหรือใน สุสานเรา tpye:ไดโนเสาร์ 1ใบที่Cost+1จากตัวที่เอากลับเข้าเด็คไป เรียกลงสนามเราโดยไม่ต้องจ่าย ค่าคอส หากทำไม่ได้ ทิ้งเด็คคุณ 3ใบ" },
+      { id: "C043", name: "ห้องทดลอง คลัง Apex", type: "Nexus", faction: "ไดโนเสาร์", cost: 4, ap: 0, ar: 0, img: "Bio-Containment Zone.jpg", desc: "[ติดตัว/1T] เมื่อศตรู จ่ายค่า Cost ครบ 4หรือมากกว่า ศตรู เลือก Army/Elite ของตัวเอง1 ใบ เปลี่ยนเป็น Type. ไดโนเสาร์[เทริน์ฝ่ายตรงข้าม] ยูนิต Type: ไดโนเสาร์ทั้งหมดบนสนามไม่สามารถ โจมตี ยูนิตที่Type: เหมือนกับตัวเองได้" },
+      { id: "C044", name: "Dreadnought Brachiosaurus", type: "Elite", faction: "ไดโนเสาร์/มังกร", cost: 8, ap: 6, ar: 8, img: "Dreadnought Brachiosaurus.jpg", desc: "[ติดตัว]: ในช่วงหลัง การ Activeศัตรูไม่สามารถสั่งยูนิตตั้งขึ้นแบบปกติได้ ต้องจ่าย3 Energy ต่อตัวเพื่อสั่งตั้งลงสนาม] [สั่งเวย Type: ไดโดนเสาร์ 2]จับนอนการd์ทุกใบบนสนาม ยกเว้น Lord" },
+      { id: "C045", name: "Paralyzing Roar", type: "Action", faction: "ไดโนเสาร์", cost: 3, ap: 0, ar: 0, img: "Paralyzing Roar.jpg", desc: "[Main/Action] เลือก [Exhaust/จับนอน]ยูนิตศัตรูคอสไม่เกิน 4 จำนวน 2 ใบ" },
+      { id: "C046", name: "Roar of the Apex", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "Roar of the Apex.jpg", desc: "หาก Lord ของเราเป็น Tpye: ไดโนเสาร์หรือมังกรสั่ง [Exhaust/จับนอน] ยูนิตศัตรูทุกตัวบนสนามรบ" },
+      { id: "C047", name: "Tyrantn Wyvern", type: "Elite", faction: "ไดโนเสาร์/มังกร", cost: 7, ap: 7, ar: 6, img: "Tyrant Wyvern.jpg", desc: "[ลงสนาม]: ทำลายยูนิตศัตรูที่ [Exhaust/นอน]ทั้งหมด หลังจากนั้น เราจั่วการd์ และศัตรูต้องทิ้งมือตามจำนวนที่ทำลาย" },
+      { id: "C048", name: "กับดัก สายฟ้า Apex", type: "Life", faction: "-", cost: 0, ap: 0, ar: 0, img: "กับดักสายฟ้า.jpg", desc: "กับดัก สายฟ้า Apexทำลาย Nexus ของคู่แข่ง 1 ใบ หากทำสำเร็จเลือกจับ Energy ของคู่แข่ง 2 ใบ [Exhaust/จับนอน]" },
+      { id: "C049", name: "การทดลอง ที่ถูกปฏิเสธ", type: "Action", faction: "ไดโนเสาร์", cost: 3, ap: 0, ar: 0, img: "การทดลองที่ถูกปฏิเสษ.jpg", desc: "การd์ใบนี้สามารถใช้งานได้หลังจากศตรูใช้ Action card[Main/Action] แสดงการd์เผ่าไดโนเสาร์บนมือ 3 ใบเลือกผล ของการd์ใบนี้ 1 อย่าง1. เลือกการd์Actionของศตรูที่กำลังใช้งานยกเลิกผลของการd์ใบนั้น2. ทำลายเน็กซัสศตรู 1ใบ" },
+      { id: "C050", name: "แคปซูล วิวัฒนาการอันล้มเหลว", type: "Action", faction: "-", cost: 9, ap: 0, ar: 0, img: "แคปซูลที่ไมสมบูรณ์.jpg", desc: "การd์ใบนี้ cost-l ตามจำนวน Army/Elite/Nexus/Energyทุกๆ 2 ใบบนสนามศตรู ที่ นอนอยู่[Main] เลือกผล 1อย่าง หากคุณมี Life Card 3หรือน้อยกว่าแสดง ผล ทั้ง 2 อย่าง1. นำการd์ army/elite เผ่าไดโนเสาร์3ใบในสุสานกลับเข้าเด็คแล้วสับ เพื่อแสดงการd์ใบบนสุดจนกว่าจะเจอการd์ Elite แล้วนำขึ้นมือที่เหลือไว้ใต้เด็ด ทุกๆ10ใบที่เปิด คุณเสีย life card 1 ใบ2. เรียก Elite เผ่าไดโนเสาร์จากบนมือ 1ใบ โดยไม่จ่ายCost" },
+      { id: "C051", name: "Thunder Viper", type: "Army", faction: "ไดโนเสาร์/มังกร", cost: 1, ap: 2, ar: 0, img: "งูสายฟ้า.jpg", desc: "[สั่งเสีย] ทิ้งเด็ค ศตรู 2ใบ ศตรูสามารถจ่าย 1เอนเนอร์จี้ เพื่อไม่ต้องทิ้ง" },
+      { id: "C052", name: "Crocodile Moose", type: "Army", faction: "ไดโนเสาร์/สัตว์", cost: 4, ap: 3, ar: 3, img: "จระเข้.jpg", desc: "[สั่งเสีย]ทำลาย Nexus ศัตรูคอสไม่เกิน 4 จำนวน 1 ใบ" },
+      { id: "C053", name: "โลกโบราณที่หวนคืน", type: "Nexus", faction: "-", cost: 6, ap: 0, ar: 0, img: "ดินแดน โบราณ.jpg", desc: "คุณสามารถแสดงการd์ ยูนิตType: ไดโนเสาร์ จากบนมือ3ใบเพื่อ ลงการd์ใบนี้ โดย ลด Cost การd์ใบนี้ 2[ติดตัว]: ยูนิตศัตรูลงสนามในสภาพ [Exhaust/นอน]" },
+      { id: "C054", name: "Mutation Ankylosaurus", type: "Army", faction: "ไดโนเสาร์/มังกร", cost: 4, ap: 2, ar: 5, img: "ตุ้ม หนามเหล็ก.jpg", desc: "[ติดตัว]: ไม่รับดาเมจจากการ์ด Action หากศตรูมิการd์ Energy นอนอยู่ 3ใบขึ้นไป" },
+      { id: "C055", name: "Chimerical Pterodactyl", type: "Army", faction: "ไดโนเสาร์/มายา", cost: 4, ap: 3, ar: 4, img: "นกคิเมร่า.jpg", desc: "[เมื่อโจมตีและไม่ให้ตั้งในเทิร์นถัดไปจับนอนยูนิตศัตรู 1 ใบ" },
+      { id: "C056", name: "Toxic Dilophosaurus", type: "Army", faction: "ไดโรเสาร์", cost: 2, ap: 1, ar: 2, img: "พ่นพิษ.jpg", desc: "[สังเสีย]บังคับศัตรูจับยูนิตตัวเองนอน 1 ใบ" },
+      { id: "C057", name: "The Last Battle of Apex", type: "Action", faction: "-", cost: 10, ap: 0, ar: 0, img: "ระเบิดทําลายล้าง dna.jpg", desc: "[Main]ทำลายการd์ทุกใบบนสนามและทิ้งการdบนมือทั้งหมดทั้งสองฝ่ายทั้งหมด หลังจากนั้นแต่ละฝ่ายเลือก ยูนิต 1ใบ ในสุสาน อัญเชิญลงสนาม โดยเอฟเฟคจะถูกยกเลิก ในเทริน์นี้ จากนั้นบังคับ สองยูนิตนั้นโจมตีใส่กันผู้ ที่ยูนิตถูกทำลาย จะต้องเสีย Life card 1 ใบ" },
+      { id: "C058", name: "Mutant Raptor", type: "Army", faction: "ไดโนเสาร์/มังกร", cost: 2, ap: 2, ar: 2, img: "แรปเตอร์.jpg", desc: "[ลงสนาม]จับ Energy ศัตรู 1 ใบ [Exhaust/นอน]" },
+      { id: "C059", name: "Sickle Therizinosaurus Beta", type: "Army", faction: "ไดโนเสาร์", cost: 5, ap: 2, ar: 5, img: "เล็บเคียวแหลม.jpg", desc: "[ติดตัว]: หากโจมตีการด์ที่นอนอยู่ ยกเว้น lord AP+2[Mian/1T] [สังเวย] ยูนิต เผ่า [ไดโนเสาร์] 1 ใบ บนสนามในเทริน์นี้การด์ใบนี้สามารถโจมตีการด์ที่นอนอยู่ได้ทั้งหมดของฝ่ายตรงข้าม ตัวละ 1 ครั้ง ยกเว้นLord" },
+      { id: "C060", name: "ห้อง Lab-Apex-", type: "Nexus", faction: "ไดโนเสาร์", cost: 3, ap: 0, ar: 0, img: "แล็ปทดลอง Apex.jpg", desc: "[Ex Energy] [จบเทิร์นทั้งสองฝ่าย] จั่ว 1 หากศัตรูนอน 2 ตัวขึ้นไป" },
+      { id: "C061", name: "Surin Mammoth", type: "Army", faction: "ไดโนเสาร์", cost: 6, ap: 4, ar: 6, img: "สนาม มอมมอธ.jpg", desc: "[ลงสนาม]: [หมดสภาพ](ไม่ลุกในเทินร์หน้า ) เอนเนอร์จี้ศตรู 1 ใบต่อทุกๆ การด์ 2ใบ ยูนิตที่ นอนอยู่ทั้งหมดบนสนาม[Main] จ่าย 3คอส หรือ สังเวย การด์เผ่า[ไดโนเสาร์] เพื่อจับนอน Army หรือ เอนเนอร์จี้ศตรู 1 ใบ" },
+      { id: "C062", name: "Venomous Spinosaurus", type: "Army", faction: "ไดโนเสาร์/สัตว์", cost: 4, ap: 3, ar: 4, img: "สไปโน.jpg", desc: "[ติดตัว]: การ์ด Action ศัตรู Cost +1" },
+      { id: "C063", name: "Bio-Hedgehog Triceratops", type: "Army", faction: "ไดโนเสาร์/สัตว์", cost: 5, ap: 3, ar: 6, img: "สามเขา เม่น.jpg", desc: "[Guard][ติดตัว] ยูนิตศตรู AP -1" },
+      { id: "C064", name: "สุสาน ความผิดพลาด", type: "Nexus", faction: "-", cost: 5, ap: 0, ar: 0, img: "สุสาน ความผิดพลาด.jpg", desc: "[เมน 1/T]: สังเวย ยูนิต 1 ตัว ของเราเพื่อดึงยูนิตType: ไดโนเสาร์ 1ใบกลับขึ้นมือ จากสุสานเราติดตัว/1T]: เมื่อยูนิตTpye: ไดโนเสาร์ ตาย เราจับนอน ยูนิตหรือ Energyศตรู 1ใบ" },
+      { id: "C065", name: "Cavern Stegosaurus", type: "Army", faction: "ไดโนเสาร์/มังกร", cost: 3, ap: 2, ar: 4, img: "หางแหลม ถํ้า.jpg", desc: "[เทริน์ของคุณ] [ติดตัว]: หากศัตรูมียูนิตนอนอยู่ การ์ดนี้ได้รับ AP +2" },
+      { id: "C066", name: "นักวิทยาศาสตร์ คลั่ง Apex", type: "LORD", faction: "ไดโรเสาร์/มังกร", cost: 0, ap: 2, ar: 4, img: "หัวหน้าวิทยิ์คลั่ง.jpg", desc: "[เมน][สังเวย] Amry/Elite [Type: ไดโนเสาร์/มังกรบนสนาม หรือ บนมือ1 ใบ เพื่อสั่ง [Exhaust/จับนอน] ยูนิต หรือ Energy ของคู่แข่ง 1 ใบ[ติดตัว2/T] เมื่อยูนิตศัตรูถูกสั่ง [Exhaust/จับนอน]จากเอฟเฟกต์การ์ดเรา คู่แข่งต้องเลือกทิ้งการ์ดบนมือ 1ใบ หากไม่ทำ เลือกเอนเนอร์จี้ ที่นอนอยู่ มันไม่ ตั้งในช่วงเริ่มเทิรน์หน้า" },
+      { id: "C067", name: "Grace Victoria -Silver Roses-", type: "Lord", faction: "CoR/กัปตัน/มนุษย์", cost: 0, ap: 3, ar: 3, img: "Grace Victoria -Silver Roses-.jpg", desc: "[เมน] เทิร์นละ 1 ครั้ง จ่าย 1 energy เพื่อทำให้ Army ของคุณ 1 ตัว มี ATK+1 แต่หากเป็นเผ่า CoR จะ +2 แทนการ +1" },
+      { id: "C068", name: "Maria -Knight-in-training-", type: "Army", faction: "CoR/มนุษย์", cost: 1, ap: 1, ar: 1, img: "Maria -Knight-in-training-.jpg", desc: "Coordinate (เมื่อยูนิตตัวอื่นของคุณโจมตี สามารถจับการ์ดใบนี้นอนเพื่อเพิ่ม ATK ของยูนิตนั้นตาม atk ปัจจุบันของยูนิตนี้ได้)" },
+      { id: "C069", name: "Anton -Bullet hand-", type: "Army", faction: "Knight/มนุษย์", cost: 3, ap: 4, ar: 1, img: "Anton -Bullet hand-.jpg", desc: "Guard" },
+      { id: "C070", name: "Varis -battle maid-", type: "Army", faction: "CoR/มนุษย์", cost: 3, ap: 3, ar: 3, img: "Varis -battle maid-.jpg", desc: "[เมื่อลงสนาม] หากมี structure เผ่า CoR บนสนามของเรา เลือก Army cost ไม่เกิน 3 ของคู่แข่ง 1 ตัว จับการ์ดใบนั้นนอน" },
+      { id: "C071", name: "Rosalia -battle mage-", type: "Army", faction: "CoR/มนุษย์", cost: 3, ap: 1, ar: 3, img: "Rosalia -battle mage-.jpg", desc: "Coordinate (เมื่อยูนิตตัวอื่นของคุณโจมตี สามารถจับการ์ดใบนี้นอนเพื่อเพิ่ม ATK ของยูนิตนั้นตาม atk ปัจจุบันของยูนิตนี้ได้)\n[เมน] เทิร์นละครั้ง สามารถจ่าย 2 เอเนจี้ เพื่อให้ยูนิตนี้มี ATK +2 ได้" },
+      { id: "C072", name: "Arum -Impenetrable shield-", type: "Army", faction: "CoR/มนุษย์", cost: 3, ap: 3, ar: 3, img: "Arum -Impenetrable shield-.jpg", desc: "Guard\n[ในเทิร์นของคู่แข่ง] การ์ดใบนี้ไม่สามารถถูกสังหารด้วยความสามารถได้" },
+      { id: "C073", name: "Aerial -Arcane summoner-", type: "Army", faction: "CoR/มนุษย์/ผู้สรรค์สร้าง", cost: 6, ap: 3, ar: 4, img: "Aerial -Arcane summoner-.jpg", desc: "[เมื่อลงสนาม] หากคุณลงการ์ดใบนี้โดยจ่ายค่าคอส\nอัญเชิญโทเคน Arcane shield โดยมี Atk1 shield1 ที่มีความสามารถ Guard ได้ ไม่เกิน 2 ใบ" },
+      { id: "C074", name: "Marcus -Dragon blood-", type: "Army", faction: "CoR/มนุษย์", cost: 5, ap: 3, ar: 5, img: "Marcus -Dragon blood-.jpg", desc: "[ในเทิร์นคุณ] หากเกิดการ Coordinate ในการโจมตีของการ์ดใบนี้ การ์ดใบนี้มี Atk +3 และจะไม่รับดาเมจจาก Elite คอส 7 หรือต่ำกว่าของคู่แข่ง" },
+      { id: "C075", name: "Olivia -The White Rose-", type: "Elite", faction: "CoR/มนุษย์", cost: 7, ap: 6, ar: 5, img: "Olivia -The White Rose-.jpg", desc: "เมื่อจบการโจมตีที่มีการ Coordinate จะทำดาเมจกับ ยูนิตของคู่แข่งนอกเหนือจาก ลอร์ด ตามดาเมจของ ยูนิตที่ใช้ความสามารถ coordinate.\n[ในเทิร์นของคุณ] ยูนิตทุกตัวของคุณได้ความสามารถ coordinate." },
+      { id: "C076", name: "Centoria -Golden Rose-", type: "Elite", faction: "CoR/มนุษย์/ผู้สรรค์สร้าง", cost: 8, ap: 6, ar: 5, img: "Centoria -The Gold Rose-.jpg", desc: "Guard\n[เมื่อลงสนาม] สร้างความเสียหายใส่Army ของคู่แข่ง ทุกตัว 1 ดาเมจ +1 ตามจำนวนเผ่า CoR บนสนาม\n[เมื่อจบการโจมตี] จ่าย 2 คอสเพื่อ Active การ์ดใบนี้ แต่การ์ดใบนี้ไม่สามารถโจมตี Lord ได้" },
+      { id: "C077", name: "Taunt", type: "Action", faction: "CoR", cost: 3, ap: 0, ar: 0, img: "Taunt.jpg", desc: "[Blink](สามารถใช้งานเมื่อคู่แข่งโจมตีได้)\nเลือก ยูนิตที่โจมตีมาและ ยูนิต 1 ตัวบนสนามของคุณ 1 ตัว เปลี่ยนเป้าหมายการโจมตีมาที่ยูนิตตัวนั้น" },
+      { id: "C078", name: "Vines and Roses", type: "Action", faction: "CoR", cost: 4, ap: 0, ar: 0, img: "Vines and roses.jpg", desc: "[Blink] (สามารถใช้งานเมื่อคู่แข่งโจมตีได้)\nเลือก Army ของคู่แข่งคอสไม่เกิน 4 จำนวนไม่เกิน 2 ตัว สร้างความเสียหาย 2 ดาเมจและจับการ์ดใบนั้นนอน" },
+      { id: "C079", name: "coordinate attack!", type: "Action", faction: "CoR", cost: 2, ap: 0, ar: 0, img: "coordinate attack!.jpg", desc: "เลือก ยุนิตของคุณ 1 ตัว ยูนิตตัวนั้นได้รับความสามารถ Coordinate " },
+      { id: "C080", name: "Campfire", type: "Nexus", faction: "CoR", cost: 4, ap: 0, ar: 0, img: "Campfire.jpg", desc: "[เมน] เทิร์นละ 1 ครั้ง สามารถจ่าย 2 energyเพื่อเลือกยูนิตของเรา 1 ใบที่มีเผ่า CoR หรือ มนุษย์และ Active ยูนิตนั้น แต่ยูนิตนั้นจะไม่สามารถโจมตีลอร์ดได้[Ex energy](สามารถจับการ์ดใบนี้นอนเพื่อใช้แทน energy ได้ 1 คอส)" },
+      { id: "C081", name: "Crystal of the Mystic Wyrm", type: "Structure", faction: "CoR", cost: 5, ap: 0, ar: 0, img: "Crystal of the Mystic Wyrm.jpg", desc: "[เมน] เทิร์นละครั้ง จับนอนการ์ดใบนี้และจ่าย 2 เอเนอจี้ เพื่อเรียก โทเคน Arcane shield โดยมี Atk1 shield1 ที่มีความสามารถ Guard ได้ 1 ใบ" },
+      { id: "C082", name: "Enhanced!", type: "Action", faction: "CoR", cost: 3, ap: 0, ar: 0, img: "Enhance!.jpg", desc: "จั่วการ์ด 1 ใบ หรือเลือกนูนิต 1 ตัว ยูนิตตัวนั้น ATK+2" },
+      { id: "C083", name: "Arcana Shield!", type: "Life", faction: "CoR", cost: 0, ap: 0, ar: 0, img: "Arcana Shield!.jpg", desc: "หากลอร์ดของเราคือ Grace Victoria -Silver Roses- เรียก โทเคน Arcane shield โดยมี Atk1 shield1 ที่มีความสามารถ Guard ได้ 1 ใบ" },
+      { id: "C084", name: "Roses and bloods", type: "Life", faction: "CoR", cost: 0, ap: 0, ar: 0, img: "Roses and bloods.jpg", desc: "หากลอร์ดของคุณคือ Grace Victoria -Silver Roses- และคู่แข่งมี Army ในสุสาน 8 ใบขึ้นไป\n\n+3 shieldให้ลอร์ดของคุณ และ ลอร์ดของคุณสามารถสังหาร ยูนิตของคู่แข่งที่โจมตีมาแล้วค่า shield หมดหลังการต่อสู้ได้" },
+      { id: "C085", name: "Nature Unleashed!", type: "Life", faction: "CoR", cost: 0, ap: 0, ar: 0, img: "Nature Unleashed!.jpg", desc: "หาก lord ของเราคือ \"Grace Victoria -Silver Roses-\" และคู่แข่งมียูนิตบนสนาม 3 ตัวขึ้นไป\nจับ Army และ Elite ของคู่แข่งทั้งหมดนอน จากนั้นสร้างดาเมจให้ Army ของคู่แข่งทั้งหมด 3 ดาเมจ" },
+      { id: "C086", name: "สาวน้อยผู้หลงรักกับความมืด Vila", type: "Elite", faction: "Shadow", cost: 9, ap: 7, ar: 5, img: "สาวน้อยผู้หลงรักกับความมืด Vila.jpg", desc: "[ลงสนาม]: อัญเชิญ token [Shadow Shield] 1 ตัว และ [Shadow Army] 3 ตัวลงสนาม\n[ติดตัว]: ในเทิร์นของคุณ [Shadow Army] ทั้งหมดสามารถสั่งโจมตี Lord ฝ่ายตรงข้ามได้โดยตรงโดยข้ามผ่าน [Guard]\n[ติดตัว]: [Shadow Army] ทั้งหมดได้รับความสามารถ [ล้างแค้น] (เมื่อถูกสังหารในการต่อสู้ ทำลายยูนิตที่ต่อสู้ด้วย)\n\"มาเล่นสนุกกันเร็ว\"" },
+      { id: "C087", name: "หญิงงามแห่งห้วงความมืด Lucy", type: "Elite", faction: "Shadow", cost: 10, ap: 5, ar: 6, img: "หญิงงามแห่งห้วงความมืด Lucy.jpg", desc: "[ติดตัว]: ยกเลิกผลของเอฟเฟกต์ [บังคับ] ของ [Shadow Army] และ [Shadow] ทั้งหมดของคุณ (ยูนิตจะไม่ถูกสังเวยเมื่อจบเทิร์น) และ [Shadow Army] กับ [Shadow] ทั้งหมดได้รับ AP +5\n[ติดตัว]: ในเทิร์นของคุณ เมื่อ [Shadow Army] หรือ [Shadow] ถูกทำลายและสังหารโดยยูนิตศัตรู ลด AR ของยูนิตศัตรูตัวนั้นตามประเภท:\nถูก Army สังหาร: ลด AR ของยูนิตนั้น -5\nถูก Elite สังหาร: ลด AR ของยูนิตนั้น -10\n\"ทำให้ตัวฉันผู้นี้สนุกหน่อยสิ\"" },
+      { id: "C088", name: "หญิงสาวผู้โดดเดี่ยว Vertin", type: "LORD", faction: "Shadow", cost: 0, ap: 0, ar: 0, img: "หญิงสาวผู้โดดเดี่ยว Vertin.jpg", desc: "[ติดตัว/1T]: ในเทิร์นของคุณ หากมียูนิต [Shadow Army] หรือ [Shadow] อยู่บนสนาม คุณสามารถทำลาย [Shadow Army] หรือ [Shadow] ทุกๆ 2 ใบ เพื่อลด Cost การเล่นการ์ดบนมือใบถัดไป -1 Cost" },
+      { id: "C089", name: "หัวหน้าแม่บ้าน Day", type: "Army", faction: "Shadow", cost: 3, ap: 2, ar: 3, img: "หัวหน้าแม่บ้าน Day.jpg", desc: "[ลงสนาม]: นำการ์ด Token [Shadow Army] 1 ใบขึ้นมือ\n[ติดตัว]: [Shadow Army] ที่ถูกอัญเชิญลงสนามได้รับความสามารถ [ลากไปด้วยกัน]" },
+      { id: "C090", name: "หนูน้อยหมวกแม่มด TTTT", type: "Army", faction: "Shadow", cost: 1, ap: 1, ar: 2, img: "หนูน้อยหมวกแม่มด TTTT.jpg", desc: "[ลงสนาม]: นำการ์ด Token [Shadow] 1 ใบขึ้นมือ" },
+      { id: "C091", name: "หนูน้อยที่บ้าเลือด Charon", type: "Army", faction: "Shadow", cost: 1, ap: 2, ar: 1, img: "หนูน้อยที่บ้าเลือด Charon.jpg", desc: "[ลงสนาม]: นำการ์ด โทเคน [Shadow] 2 ใบขึ้นมือ และทำให้ [Shadow] ที่ได้รับจากเอฟเฟกต์ของการ์ดใบนี้ได้รับ AP +2" },
+      { id: "C092", name: "นกแห่งห้วงมืด Naka", type: "Army", faction: "Shadow", cost: 2, ap: 2, ar: 2, img: "นกแห่งห้วงมืด Naka.jpg", desc: "[ติดตัว/1T]: หากมีการจ่าย Cost รวม 4 ขึ้นไปในเทิร์นนี้ การ์ดใบนี้สามารถสั่งโจมตีได้ทันที\n[ติดตัว]: เมื่อการ์ดใบนี้ถูกทำลาย นำการ์ด โทเคน [Shadow] 1 ใบขึ้นมือ และหากมีการจ่าย Cost รวม 8 ขึ้นไปในเทิร์นนี้ การ์ด [Shadow] ดังกล่าวจะได้รับ AP +4" },
+      { id: "C093", name: "น้องสาวขี้เซ้า Vaka", type: "Army", faction: "Shadow", cost: 3, ap: 1, ar: 2, img: "น้องสาวขี้เซ้าVaka.jpg", desc: "[ติดตัว/1T]: นำการ์ด Army 2 ใบในสุสานกลับเข้าเด็ค จากนั้นอัญเชิญ token [Shadow] 1 ใบลงสนาม\n\"ง่วงแล้ว\"" },
+      { id: "C094", name: "พี่สาวที่หวงน้อง Luka", type: "Army", faction: "Shadow", cost: 3, ap: 2, ar: 1, img: "พี้สาวที่หวงน้อง Luka.jpg", desc: "[ติดตัว/1T]: นำการ์ดที่มีชื่อ [Shadow] 1 ใบขึ้นมือ จากนั้นคอลการ์ดชื่อนั้น จากบนมือ 1 ใบ โดยไม่จ่ายคอสต์\n\"ใครหน้าไหนกล้าแตะต้องน้องฉัน... จะไม่มีวันได้เห็นแสงสว่างอีก!\"" },
+      { id: "C095", name: "รับพลังที่ฉันให้ไปซะสิ", type: "Nexus", faction: "Shadow", cost: 4, ap: 0, ar: 0, img: "รับพลังที่ฉันให้ไปซะสิ.jpg", desc: "[ติดตัว]: เมื่อมีการอัญเชิญ โทเคน [Shadow Army] หรือ [Shadow] ลงสนาม ยูนิตที่ลงมาจะได้รับ AP +2\n\"จงอ้าแขนรับความมืดนี้ซะ... แล้วฉีกร่างพวกมันให้แหลก\"" },
+      { id: "C096", name: "ออกมากันได้แล้ว", type: "Nexus", faction: "Shadow", cost: 3, ap: 0, ar: 0, img: "ออกมากันได้แล้ว.jpg", desc: "[ใช้การ์ดใบนี้ได้หาก LORD ติดเผ่า: Shadow]\n[Active]: จับนอนการ์ดใบนี้เพื่อใช้แทนการจ่าย 1 Cost\n[ติดตัว]: เมื่อเริ่มเทิร์น นำการ์ด [Shadow] 1 ใบขึ้นมือ และจั่วการ์ด 1 ใบ\n\"จงตื่นขึ้นจากห้วงมืดมิด... ได้เวลาออกมารับฟังคำสั่งของฉันแล้ว\"" },
+      { id: "C097", name: "อย่าให้ข้าผู้นี้ผิดหวังล่ะ", type: "Action", faction: "Shadow", cost: 6, ap: 0, ar: 0, img: "อย่าให้ข้าผู้นี้ผิดหวังล่ะ.jpg", desc: "[Main]: เลือกผลของการ์ด 1 อย่าง:\n1. อัญเชิญ [Shadow] 2 ใบลงสนาม และมอบ AP +2\n2. ทิ้งการ์ด [Shadow] 2 ใบ แล้วจั่วการ์ด 2 ใบ\n\"จงแสดงพลังของพวกเจ้าออกมา... แล้วอย่าทำให้ฉันต้องผิดหวัง\"" },
+      { id: "C098", name: "พวกไม่ได้เรื่อง", type: "Action", faction: "Shadow", cost: 2, ap: 0, ar: 0, img: "พวกไม่ได้เรื่อง.jpg", desc: "[Main]: ทิ้งการ์ด [Shadow] 4 ใบบนมือ เพื่ออัญเชิญ [Shadow Shield] 1 ใบลงสนาม\n\"ขยะไร้ค่า... จงสลายไปเพื่อเป็นโล่ให้ฉันซะ\"" },
+      { id: "C099", name: "จะโดนหรือรับดีนะ", type: "Action", faction: "Shadow", cost: 2, ap: 0, ar: 0, img: "จะโดนหรือรับดีนะ.jpg", desc: "[ในเทิร์นคู่แข่ง] Cost ในการจ่ายจะกลายเป็น 3\n[Main]: ทิ้งการ์ด 1 ใบ เลือกยูนิต [Shadow Army], [Shadow] หรือ [Shadow Shield] 1 ตัว ยูนิตนั้นได้รับ AP +2 และ AR +2 จนจบเทิร์น\n\"เลือกมาสิ... จะยอมเจ็บปวด หรือจะยอมดับสูญไปเลย?\"" },
+      { id: "C100", name: "เอาพลังของพวกเจ้ามาซะ", type: "Action", faction: "Shadow", cost: 9, ap: 0, ar: 0, img: "เอาพลังของพวกเจ้ามาซะ.jpg", desc: "[Main]: ทำลายการ์ด 1 ใบบนสนามคู่แข่ง ยกเว้น Lord โดยมีเงื่อนไขว่าต้องมียูนิตที่มีชื่อ [Shadow] อยู่บนสนามเรา จากนั้นทำลายยูนิตที่มีชื่อ [Shadow] ทุกใบบนสนามฝ่ายเรา\n\"จงมอบพลังและความตายของพวกเจ้า... มาเป็นศาสตราวุธบดขยี้มันซะ\"" },
+      { id: "C101", name: "ดีมากทหารเงาของข้า", type: "Life", faction: "Shadow", cost: 0, ap: 0, ar: 0, img: "ดีมากทหารเงาของข้า.jpg", desc: "[Life Trigger]: หาก Lord เป็น [หญิงสาวผู้โดดเดี่ยว Vertin] และในสนามเรามี [Shadow Army] หรือ [Shadow] รวมกัน 3 ใบขึ้นไป สามารถเลือกทำลาย Army, Elite หรือ Nexus ได้ 1 ใบ\n\"ทำงานได้ดีมาก... บดขยี้เสี้ยนหนามชิ้นนี้ให้พ้นทางฉันซะ\"" },
+      { id: "C102", name: "มาช่วยข้าหน่อยสิ", type: "Life", faction: "Shadow", cost: 0, ap: 0, ar: 0, img: "มาช่วยข้าหน่อยสิ.jpg", desc: "[Life Trigger]: หาก Lord เป็น [หญิงสาวผู้โดดเดี่ยว Vertin] อัญเชิญ โทเคน [Shadow] 2 ตัวลงสนาม\n\"ตื่นขึ้นมาได้แล้ว... ปรากฏตัวออกมาปกป้องข้าเดี๋ยวนี้!\"" },
+      { id: "C103", name: "การโจมตีของเจ้าไร้พลังแล้ว", type: "Life", faction: "Shadow", cost: 0, ap: 0, ar: 0, img: "การโจมตีของเจ้าไรพลังแล้ว.jpg", desc: "[Life Trigger]: หาก Lord เป็น [หญิงสาวผู้โดดเดี่ยว Vertin] และมี [Shadow Army] กับ [Shadow Shield] อยู่บนสนาม ลบความสามารถของ Elite คู่แข่ง 1 ใบ จนจบเทิร์นถัดไปของฝ่ายตรงข้าม\n\"คมดาบที่ไร้ความมืด... ก็เป็นได้แค่เศษเหล็กไร้ค่าเท่านั้นเเหละ\"" },
+      { id: "C104", name: "มฤตยู สีขาว Snow Owl", type: "Elite", faction: "O.W.I", cost: 7, ap: 7, ar: 1, img: "มฤตยู สีขาว Snow Owl.jpg", desc: "[ซุ่มโจมตี]: หากมี Nexus บนสนาม 3 ใบขึ้นไป สามารถจ่าย Cost เพื่อลงสนามการ์ดใบนี้ได้ใน ช่วงโจมตีของศัตรู[ลงสนาม]: ทำลาย Army หรือ Elite ศัตรู 1 ใบที่มี Cost น้อยกว่าหรือเท่ากับ (จำนวน Nexus บนสนามเรา x2)[สั่งเสีย]: ย้ายการ์ดใบนี้ไปวางใน Nexus โซน (นับเป็น Nexus ชื่อ [SnowOwl ซ่อนเร้น]) และได้รับสกิล:[Ex Energy][Main/Blink]: จ่าย 6 Energy เพื่อลงสนามการ์ดใบนี้ในฐานะ Elite ในสภาพนอน (ได้รับผล [ลงสนาม] และ [สั่งเสีย] ตามปกติ)" },
+      { id: "C105", name: "Brahma-Veda Core", type: "LORD", faction: "จักรกล/พระเจ้า", cost: 0, ap: 2, ar: 4, img: "Brahma-Veda Core.jpg", desc: "สั่งใช้งานได้ หากคุณมี ยูนิตเพียง ใบเดียวบนสนาม\n[Main/1T] จ่าย 3 เลือกยูนิต เผ่า จักรกล ยูนิตนั้นโจมตีได้สองครั้ง\n[Main] จ่าย cost 10 นําการด์ Elite ชื่อ Garuda Machine Core, Sky SovereignและNaga Engine Core, Deep Sovereign จากบนสนาม นํากลับเข้าเด็ค\n[กําเนิดดารา] เรียกโทเคน Brahma-Veda Core, The Ultimate Mecha Sovereign ลงสนาม" },
+      { id: "C106", name: "Garuda Machine Core, Sky Sovereign", type: "Elite", faction: "จักรกล/จักรพรรดิ", cost: 10, ap: 8, ar: 8, img: "Garuda Machine Core, Sky Sovereign.jpg", desc: "[ลงสนาม] เปิด 5ใบบนสุดกองการด์คุณ ค้นหา Elite เผ่า:จักรกล/เทพเจ้า นําขึ้นมือ 1ใบ ที่เหลือไว้ใต้เด็ค หากค้นหาเจอ ฟื้น Energy คุณ 5 ใบ\n[ศตรูไม่สามารถย้ายเป้าการโจมตีการด์ใบนี้]\n[ติดตัว] การด์ใบนี้เมื่อถูกเปลี่ยนสภาพจะลุกได้ 2ครั้งต่อเทริน์" },
+      { id: "C107", name: "Naga Engine Core, Deep Sovereign", type: "Elite", faction: "จักรกล/จักรพรรดิ", cost: 10, ap: 8, ar: 8, img: "Naga Engine Core, Deep Sovereign.jpg", desc: "[หากบนสนามคุณมีการด์ติดชื่อ [Garuda] คอสการด์ ใบนี้ -5]\n[ติดตัว] หากคุณมี ยูนิตเพียง 2ใบบนสนาม ยูนิตคุณ ทั้งหมดได้รับ [เมื่อจบเทริน์ทุกฝ่ายฟื้นฟู่ AR เต็ม]\n[ติดตัว] ยูนิตศตรูต้องโจมตีการด์ใบนี้เท่านั้นหากทําได้" },
+      { id: "C108", name: "Scout Drone Helo", type: "Army", faction: "จักรกล", cost: 3, ap: 0, ar: 4, img: "Scout Drone.jpg", desc: "[เมื่อเริ่มเทริน์] จับนอนการด์ใบนี้ +1 EX Energy\n[สั่งเสีย] เปิด 4ใบบนสุดคุณการด์การด์ นําการด์ Action หรือ Nexusเผ่า:จักรกล 1ใบขึ้นมือ ที่เหลือ สับกลับเข้าเด็ค" },
+      { id: "C109", name: "Sentinel Frame Senko", type: "Army", faction: "จักรกล", cost: 5, ap: 1, ar: 6, img: "Sentinel Frame.jpg", desc: "[guard]\n[สั่งเสีย] คุณสามารทิ้งการด์บนมือ 2ใบ คุณได้รับ 2EX Energy ในเทริน์ ถัดไป" },
+      { id: "C110", name: "Mechanic Operator Hexshin", type: "Army", faction: "จักรกล", cost: 5, ap: 3, ar: 4, img: "Mechanic Operator.jpg", desc: "หาก Lord คุณเป็น Brahma-Veda Core สามาถใช้ความสามารถ ต่อไปนี้\n[Main/1] ชื่อเทริน์ละครั้ง ทิ้งการด์ใบนี้จากบนมือ ค่า Cost Elite ถัดไปที่เล่น จะ -1 ตาม จํานวนต่างยูนิตบนสนามรบ [เช่น เรามี 1 เค้ามี สอง เราจะ -1]\n[ติดตัว] หากยูนิตยกเว้นLordศตรูโจมตีใส่ยูนิตอื่นที่ไม่ใช้ใบนี้ จะ ap-2" },
+      { id: "C111", name: "Support Repair Comander Lugia", type: "Army", faction: "จักรกล", cost: 6, ap: 2, ar: 6, img: "Support Repair Bot.jpg", desc: "[ติดตัว] ยูนิตเผ่า:จักรกล บนสนามรบเราทุกใบได้ความสามารถ ป้องกัน และ เมื่อจบเทริน์ทุกฝ่าย ฟื้นฟู AR 2 จะ ap-2" },
+      { id: "C112", name: "Overclock Fusion", type: "Action", faction: "จักรกล", cost: 4, ap: 0, ar: 0, img: "Overclock Fusion.jpg", desc: "[Main/Action] มอบ เอฟเฟกต์ [เกราะแตก], [ทะลวง](เมื่อยูนิตนี้โจมตีทําลายศตรูได้ ทําดาเมจใส่Life ฝ่ายตรงข้าม 1ใบ] และ ap+3 แก่ ยูนิตเผ่า จักรกลบนสนามรบเรา 1ใบ เมื่อจบการโจมตี ยูนิตนั้น ARจะเหลือ 1" },
+      { id: "C113", name: "Absolute Sky King Shield", type: "Action", faction: "จักรกล", cost: 4, ap: 0, ar: 0, img: "Absolute Iron Shield.jpg", desc: "[Main] เลือก EliteTpye:จักรกล 1ใบบนสนาม การด์ใบนั้น จะไม่ได้รับดาเมจจากการด์ใดๆจนจบเทริน์ ฝ่ายตรงข้าม\n[EX Full] [หากคุณมี 10Energyบนสนาม] และคุณมี Elite อย่างน้อย1ใบ Cost การด์ใบนี้จะเป็น0" },
+      { id: "C114", name: "Emergency Core Eject", type: "Action", faction: "จักรกล", cost: 5, ap: 0, ar: 0, img: "Emergency Core Eject.jpg", desc: "การด์ใบนี้ Cost-2 หากบนสนามเรามีเพียงยูนิตตัวเดียว\n[Action] เลือกยูนิต Tpye:จักรกล 1ใบ บนสนาม หากจะถูกทําลาย สามารถนํา การด์ ยูนิต Tpye:จักรกล จากในสุสาน กลับเข้าใต้กอง 3ใบ แล้วสับแทนได้" },
+      { id: "C115", name: "Meet you Wolrd", type: "Action", faction: "จักรกล", cost: 6, ap: 0, ar: 0, img: "Meet you wolrd.jpg", desc: "หากคุณมี ยูนิตเพียงตัวเดียวบนสนามใช้งานเอฟเฟกต์ได้\n[Main] จั่ว 3 ทิ้ง 1\nหากบนสนามคุณมี เผ่า จักรกล Cost -2" },
+      { id: "C116", name: "คําสั่ง:Target Lock On", type: "Action", faction: "จักรกล", cost: 5, ap: 0, ar: 0, img: "Target Lock On.jpg", desc: "[Main] ทําลายNexus คู่แข่ง 1 ใบ หากคุณมี ยูนิต จักรกลเพียงใบเดียวบนสนาม จั่ว 2" },
+      { id: "C117", name: "Ancient Core ReBorn", type: "Nexus", faction: "จักรกล", cost: 8, ap: 0, ar: 0, img: "Ancient Myth called.jpg", desc: "[ในเทริน์ของคุณ]\n[Main] ทิ้งการด์บนมือ 1ใบ เปิดการด์10ใบบนเด็ค นํา Elite เผ่า จักรกล 1ใบขึ้นมือ ที่เหลือสับกลับเข้าเด็ค\n[Main/1] คุณสามารถทําลายการด์ใบนี้ และการด์ทุกใบบน สนามคุณ เรียก Elite เผ่าจักรกล จากบนมือ หรือ ใน สุสานคุณ 1ใบ โดยไม่จ่าย Cost" },
+      { id: "C118", name: "Sky-Ocean Sovereign Zone", type: "Nexus", faction: "จักรกล", cost: 7, ap: 0, ar: 0, img: "Sky-Ocean Sovereign Zone.jpg", desc: "[ในเทริน์ของผู้เล่นทุกฝ่าย]\nหากเรามียูนิต ไม่เกิน 2 ใบ จะได้รับเอฟเฟกต์ ต่อไปนี้\n1.Elite ทุกใบบนสนามเรา AP,AR +2\n2.[Guard]\n3.Elite คุณไม่สามารถถูกนําออกสนามได้ด้วย ผลของการด์ศตรูนอกจากการต่อสู้" },
+      { id: "C119", name: "Sovereign Repair Zone", type: "Nexus", faction: "จักรกล", cost: 7, ap: 0, ar: 0, img: "Sovereign Repair Dock.jpg", desc: "[ในเทริน์ของคุณ]\n[ติดตัว/1T] หาก คุณไม่มี การด์ยูนิตบนสนามรบเลย การด์Elite ถัดไปที่เล่น จะCost-1 ตามจํานวน การด์ยูนิต บนสนามรบศตรู\n[ติดตัว] การด์Actionคุณ ที่ร่ายใส่ Elite เผ่า:จักรกล ของคุณ จะ Cost-2" },
+      { id: "C120", name: "First Core: Time of Galaxy", type: "Life", faction: "จักรกล", cost: 0, ap: 0, ar: 0, img: "Core Shield - Protocol Alpha.jpg", desc: "[Life Trigger]: หากคุณมี Elite อย่างน้อย1ใบ ไม่มียูนิตไม่เกินสองใบบนสนามรบ คู่แข่ง จะไม่สามารถประกาศโจมตีได้อีก ในเทริน์นี้" },
+      { id: "C121", name: "second core Reboot System", type: "Life", faction: "จักรกล", cost: 0, ap: 0, ar: 0, img: "Core Shield - Reboot System.jpg", desc: "[Life Trigger]: หากคุณมี Elite เพียง1ใบ บนสนามรบ และไม่มียูนิตอื่น จั่วการด์ 2 ใบ และ ตั้งการด์ใบนั้นพร้อมมอบ [guard]" },
+      { id: "C122", name: "Final Core End Final Overdrive", type: "Life", faction: "จักรกล", cost: 0, ap: 0, ar: 0, img: "Core Shield - Final Overdrive.jpg", desc: "[Life Trigger]: หากคุณมี ยูนิต น้อยกว่าศตรู และ life ตํ่ากว่า 3 นํา Garuda Machine Core, Sky Sovereign และ Naga Engine Core, Deep Sovereign จากบนสนามหรือใน สุสานคุณกลับเข้าใต้เด็คคุณ เรียกโทเคน นับเป็น Elite [Brahma-Veda Core, The Ultimate Mecha Sovereign]" },
+      { id: "C123", name: "Zero Core: Error OverDrive", type: "Action", faction: "จักรกล", cost: 10, ap: 0, ar: 0, img: "lord zero core Action.jpg", desc: "[Main]นำการด์ Elite Cost 8ขึ้นไป 1 ใบ เผ่าจักรกลจากบนมือ, สนาม,สุสาน ของเรากลับเข้าเด็ค 1ใบ และทิ้งการด์บนมือ 2ใบเรียกโทเคน [Garuda Chaotic From]" }
+
+    ];
+
+    const tokenDatabase = [
+      { id: "TK01", name: "Remnant", img: "ทหารโทเคน ม่วง ตัวโทเคน.jpg" },
+      { id: "TK02", name: "Spore", img: "spore token.jpg" },
+      { id: "TK03", name: "Draco phinus", img: "Draco phinus.jpg" },
+      { id: "TK04", name: "เจต ตํานงแยกของ Alaric", img: "เจต ตํานงแยกของ Alaric.jpg" },
+      { id: "TK05", name: "Arcane Shield", img: "โทเคนอิศวิน.jpg" },
+      { id: "TK06", name: "Shadow", img: "เงาธรรมดา.jpg" },
+      { id: "TK07", name: "Shadow shield", img: "เงาโล่.jpg" },
+      { id: "TK08", name: "Shadow Army", img: "เงา 1.jpg" },
+      { id: "TK09", name: "Garuda Chaotic From", img: "lord zero core.jpg" },
+      { id: "TK10", name: "Brahma-Veda Core, The Ultimate Mecha Sovereign", img: "Brahma-Veda Core, The Ultimate Mecha Sovereign.jpg" }
+    ];
+
+    // ================= SERVER ROOM / WEBSOCKET MULTIPLAYER =================
+    // 2-player rooms only. No P2P/WebRTC and no Spectator mode.
+    let conn = null;
+    let createdRoomId = "";
+    let roomRole = "";
+    let connectionTimeout = null;
+    let isBattleStarted = false;
+
+    // If the HTML is hosted by the same Node server, automatically use its WebSocket endpoint.
+    // When opened directly as a file, it falls back to localhost for local testing.
+    const WS_SERVER_URL = (() => {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+        return `${wsProtocol}//${location.host}`;
+      }
+      return "ws://localhost:8080";
+    })();
+
+    function setLobbyDebug(message, type = "info") {
+      const el = document.getElementById("lobby-status");
+      if (!el) return;
+      const prefix = type === "ok" ? "✅ " : type === "error" ? "❌ " : "🔄 ";
+      el.textContent = prefix + message;
+      el.style.color = type === "ok" ? "#9ece6a" : type === "error" ? "#f7768e" : "#e0af68";
+      console.log(`[Nexus Multiplayer] ${message}`);
+    }
+
+    function clearConnectionTimeout() {
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        connectionTimeout = null;
+      }
+    }
+
+    function startConnectionTimeout(label = "เชื่อมต่อ") {
+      clearConnectionTimeout();
+      connectionTimeout = setTimeout(() => {
+        if (!conn || conn.readyState !== WebSocket.OPEN) {
+          setLobbyDebug(`${label}ใช้เวลานานเกินไป กรุณาลองใหม่`, "error");
+        }
+      }, 15000);
+    }
+
+    function safeSend(data) {
+      if (conn && conn.readyState === WebSocket.OPEN) {
+        try {
+          conn.send(JSON.stringify(data));
+          return true;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      return false;
+    }
+
+    function generateRoomCode() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let code = '';
+      for(let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+      return code;
+    }
+
+    function connectToGameServer(onOpen) {
+      if (conn) {
+        try { conn.close(); } catch(e) {}
+        conn = null;
+      }
+
+      setLobbyDebug(`กำลังเชื่อมต่อ Game Server...`);
+      startConnectionTimeout("Game Server ");
+
+      try {
+        conn = new WebSocket(WS_SERVER_URL);
+      } catch (e) {
+        setLobbyDebug("สร้าง WebSocket ไม่สำเร็จ", "error");
+        return;
+      }
+
+      conn.onopen = () => {
+        clearConnectionTimeout();
+        setLobbyDebug("เชื่อมต่อ Game Server สำเร็จ", "ok");
+        if (typeof onOpen === "function") onOpen();
+      };
+
+      conn.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch(e) { return; }
+        handleServerMessage(data);
+      };
+
+      conn.onerror = () => {
+        setLobbyDebug("WebSocket มีข้อผิดพลาด", "error");
+      };
+
+      conn.onclose = () => {
+        clearConnectionTimeout();
+        const wasInBattle = isBattleStarted;
+        conn = null;
+        if (wasInBattle) {
+          alert("⚠️ การเชื่อมต่อกับห้องถูกตัด เกมออนไลน์จบลง");
+        } else {
+          setLobbyDebug("การเชื่อมต่อกับ Server ถูกตัด", "error");
+        }
+      };
+    }
+
+    function handleServerMessage(data) {
+      if (!data || !data.type) return;
+
+      if (data.type === "ROOM_CREATED") {
+        createdRoomId = data.roomId;
+        roomRole = "host";
+        const copyBtn = document.getElementById("copy-code-btn");
+        document.getElementById("room-code-display").style.display = "block";
+        copyBtn.disabled = false;
+        copyBtn.textContent = "📋 คัดลอก Code ห้อง";
+        setLobbyDebug(`สร้างห้องสำเร็จ: ${createdRoomId} — รอผู้เล่นอีก 1 คน` , "ok");
+        return;
+      }
+
+      if (data.type === "ROOM_JOINED") {
+        roomRole = data.role || "guest";
+        createdRoomId = data.roomId || document.getElementById("room-code-input").value.trim().toLowerCase();
+        setLobbyDebug(`เข้าห้อง ${createdRoomId} สำเร็จ — รอเริ่มการต่อสู้...`, "ok");
+        return;
+      }
+
+      if (data.type === "OPPONENT_CONNECTED") {
+        setLobbyDebug("พบคู่แข่งแล้ว กำลังเริ่มห้องต่อสู้...", "ok");
+        if (!isBattleStarted) {
+          isBattleStarted = true;
+          document.getElementById("lobby").style.display = "none";
+          setupInitialBoard();
+          setTimeout(() => safeSend({ type: "PLAYER_READY" }), 100);
+        }
+        return;
+      }
+
+      if (data.type === "PLAYER_READY") {
+        if (!isBattleStarted) {
+          isBattleStarted = true;
+          document.getElementById("lobby").style.display = "none";
+          setupInitialBoard();
+        }
+        setTimeout(() => {
+          syncHandToOpponent();
+          syncBoardToOpponent();
+        }, 100);
+        return;
+      }
+
+      if (data.type === "SYNC_HAND") renderOpponentHand(data.count);
+      if (data.type === "SYNC_BOARD") renderOpponentBoard(data.boardState);
+      if (data.type === "SURRENDER") {
+        alert("🎉 ยินดีด้วย! ฝ่ายตรงข้ามยอมแพ้ คุณเป็นผู้ชนะ!");
+      }
+
+      if (data.type === "ROOM_ERROR") {
+        setLobbyDebug(data.message || "ไม่สามารถเข้าห้องได้", "error");
+        alert(data.message || "ไม่สามารถเข้าห้องได้");
+      }
+
+      if (data.type === "OPPONENT_LEFT") {
+        alert("⚠️ ฝ่ายตรงข้ามออกจากห้องแล้ว");
+        isBattleStarted = false;
+        document.getElementById("lobby").style.display = "flex";
+        setLobbyDebug("ฝ่ายตรงข้ามออกจากห้อง — ห้องพร้อมให้เริ่มใหม่", "error");
+      }
+    }
+
+    function setupConnection() {
+      // Kept as a compatibility function for existing game code.
+      if (conn && conn.readyState === WebSocket.OPEN) {
+        safeSend({ type: "PLAYER_READY" });
+      }
+    }
+
+    document.getElementById("create-room-btn").onclick = () => {
+      const code = document.getElementById("deck-code-input").value.trim();
+      if(!code) return alert("โปรดใส่ Deck Code ก่อนสร้างห้อง!");
+      if(!initDeckData(code)) return;
+
+      const copyBtn = document.getElementById("copy-code-btn");
+      copyBtn.disabled = true;
+      copyBtn.textContent = "⏳ กำลังเชื่อมต่อ Server...";
+      document.getElementById("room-code-display").style.display = "block";
+      isBattleStarted = false;
+
+      connectToGameServer(() => {
+        const requestedRoomId = generateRoomCode();
+        safeSend({ type: "CREATE_ROOM", roomId: requestedRoomId });
+        setLobbyDebug(`กำลังสร้างห้อง ${requestedRoomId}...`);
+      });
+    };
+
+    document.getElementById("copy-code-btn").onclick = () => {
+      if(!createdRoomId) return alert("ยังไม่มีรหัสห้อง");
+      navigator.clipboard.writeText(createdRoomId).then(() => alert("คัดลอก Code ห้องเรียบร้อยแล้ว!"));
+    };
+
+    document.getElementById("join-room-btn").onclick = () => {
+      const deckCode = document.getElementById("deck-code-input").value.trim();
+      const roomCode = document.getElementById("room-code-input").value.trim().toLowerCase();
+      if(!deckCode || !roomCode) return alert("โปรดใส่ทั้ง Deck Code และ รหัสห้อง!");
+      if(!initDeckData(deckCode)) return;
+
+      isBattleStarted = false;
+      connectToGameServer(() => {
+        safeSend({ type: "JOIN_ROOM", roomId: roomCode });
+        setLobbyDebug(`กำลังตรวจสอบห้อง ${roomCode}...`);
+      });
+    };
+
+    function decodeDeckCode(code) {
+      const cleanCode = String(code || "").trim().replace(/\s+/g, "");
+      if (!cleanCode) throw new Error("empty deck code");
+
+      // Accept the current UTF-8-safe format and the old format.
+      try {
+        return JSON.parse(decodeURIComponent(escape(atob(cleanCode))));
+      } catch (e) {
+        return JSON.parse(decodeURIComponent(atob(cleanCode)));
+      }
+    }
+
+    function initDeckData(code) {
+      try {
+        const deckData = decodeDeckCode(code);
+
+        if (!deckData || typeof deckData !== "object" ||
+            !deckData.main || typeof deckData.main !== "object" ||
+            !deckData.life || typeof deckData.life !== "object") {
+          throw new Error("invalid deck structure");
+        }
+
+        gameState.pMainDeck = Object.entries(deckData.main)
+          .flatMap(([id, count]) => {
+            const n = Number(count);
+            return Number.isFinite(n) && n > 0 ? Array(Math.floor(n)).fill(id) : [];
+          });
+
+        gameState.pLifeDeck = Object.entries(deckData.life)
+          .flatMap(([id, count]) => {
+            const n = Number(count);
+            return Number.isFinite(n) && n > 0 ? Array(Math.floor(n)).fill(id) : [];
+          });
+
+        gameState.pHand = [];
+        gameState.pGraveyard = [];
+        gameState.oppGraveyard = [];
+
+        return true;
+      } catch(e) {
+        console.error("Invalid Deck Code:", e);
+        alert("Deck Code ไม่ถูกต้อง หรือเสียหาย!");
+        return false;
+      }
+    }
+
+    function setupInitialBoard() {
+      const lordIndex = gameState.pMainDeck.findIndex(id => getCardData(id).type?.toUpperCase() === "LORD");
+      if(lordIndex !== -1) {
+        const lordId = gameState.pMainDeck.splice(lordIndex, 1)[0];
+        createCardElement(lordId, "p-lord-zone");
+      }
+      gameState.pMainDeck.sort(() => Math.random() - 0.5);
+      gameState.pLifeDeck.sort(() => Math.random() - 0.5);
+
+      for(let i = 0; i < 7; i++) {
+        if(gameState.pLifeDeck.length > 0) {
+          const cardId = gameState.pLifeDeck.pop();
+          createCardElement(cardId, "p-life-zone", true);
+        }
+      }
+      updateMainDeckUI();
+      syncBoardToOpponent();
+      syncHandToOpponent();
+    }
+
+    function createCardElement(id, zoneId, isFaceDown = false, isEnergy = false, isToken = false) {
+      const zone = document.getElementById(zoneId);
+      const el = document.createElement("div");
+
+      if(isEnergy) {
+        el.className = "card energy-card";
+        el.textContent = "ENERGY";
+      } else {
+        const cardData = getCardData(id);
+        const cardType = (cardData.type || "").toUpperCase();
+        
+        let typeClass = "";
+        if(cardType === "LORD") typeClass = "card-lord";
+        else if(cardType === "ELITE") typeClass = "card-elite";
+
+        const altClass = isAltArtCard(cardData, id) ? "card-alt-art" : "";
+
+        el.className = `card ${typeClass} ${altClass} ${isFaceDown ? 'card-back' : ''} ${isToken ? 'token-card' : ''}`;
+        if(!isFaceDown) el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+      }
+
+      el.dataset.id = id;
+      if(isToken) el.dataset.isToken = "true";
+
+      const handleAction = (e) => {
+        e.stopPropagation();
+        selectedCardElement = el;
+
+        if(isEditMode) {
+          openContextMenu(e);
+        } else {
+          if(el.classList.contains('card-back')) {
+            const cardData = getCardData(id);
+            el.classList.remove('card-back');
+            el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+          } else {
+            zoomCard(id, el);
+          }
+          syncBoardToOpponent();
+        }
+      };
+
+      el.addEventListener('click', handleAction);
+
+      zone.appendChild(el);
+      syncBoardToOpponent();
+      return el;
+    }
+
+    function playCardFromHand(id, handIndex, sourceElement) {
+      const choice = prompt(
+        "โปรดเลือกการกระทำสำหรับการ์ดใบนี้:\n" +
+        "1 = ลง Battlefield\n" +
+        "2 = ลง Nexus Zone\n" +
+        "3 = ลง Energy Zone\n" +
+        "4 = วางไว้บนสุด Main Deck\n" +
+        "5 = วางไว้ใต้สุด Main Deck\n" +
+        "6 = 🔍 ดูรูปการ์ดเต็ม",
+        "1"
+      );
+
+      if(!choice) return;
+
+      if(choice === "1") {
+        gameState.pHand.splice(handIndex, 1);
+        createCardElement(id, "p-battlefield");
+      } else if(choice === "2") {
+        gameState.pHand.splice(handIndex, 1);
+        createCardElement(id, "p-nexus-zone");
+      } else if(choice === "3") {
+        gameState.pHand.splice(handIndex, 1);
+        createCardElement(id, "p-energy-zone");
+      } else if(choice === "4") {
+        gameState.pHand.splice(handIndex, 1);
+        gameState.pMainDeck.push(id);
+        updateMainDeckUI();
+      } else if(choice === "5") {
+        gameState.pHand.splice(handIndex, 1);
+        gameState.pMainDeck.unshift(id);
+        updateMainDeckUI();
+      } else if(choice === "6") {
+        zoomCard(id, sourceElement);
+        return;
+      }
+
+      renderHand();
+      syncBoardToOpponent();
+    }
+
+    function renderHand() {
+      const container = document.getElementById("player-hand");
+      container.innerHTML = "";
+      gameState.pHand.forEach((id, index) => {
+        const cardData = getCardData(id);
+        const cardType = (cardData.type || "").toUpperCase();
+        
+        let typeClass = "";
+        if(cardType === "LORD") typeClass = "card-lord";
+        else if(cardType === "ELITE") typeClass = "card-elite";
+
+        const altClass = isAltArtCard(cardData, id) ? "card-alt-art" : "";
+
+        const el = document.createElement("div");
+        el.className = `card ${typeClass} ${altClass}`;
+        el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+        el.onclick = () => playCardFromHand(id, index, el);
+        container.appendChild(el);
+      });
+      syncHandToOpponent();
+    }
+
+    function openContextMenu(e) {
+      const menu = document.getElementById("context-menu");
+      menu.style.display = "block";
+      
+      let clientX = e.clientX || (e.touches && e.touches[0].clientX) || 100;
+      let clientY = e.clientY || (e.touches && e.touches[0].clientY) || 100;
+
+      const menuWidth = 180;
+      const menuHeight = Math.min(menu.offsetHeight || 300, window.innerHeight * 0.8);
+
+      if (clientX + menuWidth > window.innerWidth) {
+        clientX = window.innerWidth - menuWidth - 10;
+      }
+      if (clientY + menuHeight > window.innerHeight) {
+        clientY = window.innerHeight - menuHeight - 10;
+      }
+
+      menu.style.left = Math.max(10, clientX) + "px";
+      menu.style.top = Math.max(10, clientY) + "px";
+    }
+
+    document.addEventListener('click', () => {
+      document.getElementById("context-menu").style.display = "none";
+    });
+
+    function toggleCardOrientation() {
+      if(selectedCardElement) {
+        selectedCardElement.classList.toggle("exhausted");
+        syncBoardToOpponent();
+      }
+    }
+
+    function revealCard() {
+      if(selectedCardElement) {
+        const cardId = selectedCardElement.dataset.id;
+        if(selectedCardElement.classList.contains("card-back")) {
+          const cardData = getCardData(cardId);
+          selectedCardElement.classList.remove("card-back");
+          selectedCardElement.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+        } else {
+          selectedCardElement.classList.add("card-back");
+          selectedCardElement.style.backgroundImage = "";
+        }
+        syncBoardToOpponent();
+      }
+    }
+
+    function moveSelectedCardTo(targetZoneId) {
+      if(!selectedCardElement) return;
+      const cardId = selectedCardElement.dataset.id;
+      const isEnergy = selectedCardElement.classList.contains("energy-card");
+      const isToken = selectedCardElement.dataset.isToken === "true";
+
+      selectedCardElement.remove();
+
+      if(targetZoneId === 'hand') {
+        if(!isEnergy) {
+          gameState.pHand.push(cardId);
+          renderHand();
+        }
+      } else if(targetZoneId === 'graveyard') {
+        if(!isEnergy && !isToken) {
+          gameState.pGraveyard.push(cardId);
+          updateGraveyardUI();
+        }
+      } else if(targetZoneId === 'p-life-deck') {
+        if(!isEnergy && !isToken) {
+          gameState.pLifeDeck.push(cardId);
+        }
+      } else if(targetZoneId === 'p-life-zone') {
+        createCardElement(cardId, 'p-life-zone', true, isEnergy, isToken);
+      } else {
+        createCardElement(cardId, targetZoneId, false, isEnergy, isToken);
+      }
+
+      selectedCardElement = null;
+      syncBoardToOpponent();
+    }
+
+    function removeCardFromGame() {
+      if(selectedCardElement) {
+        selectedCardElement.remove();
+        selectedCardElement = null;
+        syncBoardToOpponent();
+      }
+    }
+
+    function openTokenModal() {
+      const modal = document.getElementById("token-modal");
+      const list = document.getElementById("token-modal-list");
+      list.innerHTML = "";
+
+      tokenDatabase.forEach(token => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "token-card-wrapper";
+
+        const el = document.createElement("div");
+        el.className = "card token-card";
+        el.style.backgroundImage = `url('${IMAGE_BASE_URL}${token.img}')`;
+
+        const btnSpawn = document.createElement("button");
+        btnSpawn.className = "btn-gy-action";
+        btnSpawn.style.background = "#bb9af7";
+        btnSpawn.style.color = "#000";
+        btnSpawn.style.marginTop = "4px";
+        btnSpawn.textContent = "⚔️ ลง Battlefield";
+        btnSpawn.onclick = () => {
+          createCardElement(token.id, "p-battlefield", false, false, true);
+          closeTokenModal();
+        };
+
+        wrapper.appendChild(el);
+        wrapper.appendChild(btnSpawn);
+        list.appendChild(wrapper);
+      });
+
+      modal.style.display = "flex";
+    }
+
+    function closeTokenModal() {
+      document.getElementById("token-modal").style.display = "none";
+    }
+
+    function addEnergyCard(e) {
+      if(e && e.target.classList.contains('card')) return;
+      const energyZone = document.getElementById("p-energy-zone");
+      if(energyZone.querySelectorAll('.card').length >= 10) return alert("Energy เต็มแล้ว!");
+      createCardElement("ENERGY_TOKEN", "p-energy-zone", false, true);
+    }
+
+    function updateMainDeckUI() {
+      const count = gameState.pMainDeck.length;
+      document.getElementById("p-deck-count").textContent = count;
+      const visual = document.getElementById("p-deck-visual");
+      visual.style.display = count === 0 ? "none" : "block";
+    }
+
+    function drawMainCard() {
+      if(gameState.pMainDeck.length === 0) return alert("Main Deck หมดแล้ว!");
+      const drawnCard = gameState.pMainDeck.pop();
+      gameState.pHand.push(drawnCard);
+      updateMainDeckUI();
+      renderHand();
+      syncBoardToOpponent();
+    }
+
+    function shuffleMainDeck() {
+      gameState.pMainDeck.sort(() => Math.random() - 0.5);
+      alert("สับ Main Deck เรียบร้อยแล้ว!");
+      syncBoardToOpponent();
+    }
+
+    function drawLifeCard() {
+      if(gameState.pLifeDeck.length === 0) return alert("Life Deck หมดแล้ว!");
+      const cardId = gameState.pLifeDeck.pop();
+      createCardElement(cardId, "p-life-zone", true);
+    }
+
+    function shuffleLifeDeck() {
+      gameState.pLifeDeck.sort(() => Math.random() - 0.5);
+      alert("สับกอง Life Deck แล้ว!");
+    }
+
+    function addLifeCount(amount) {
+      if(amount > 0) {
+        if(gameState.pLifeDeck.length > 0) drawLifeCard();
+      } else {
+        const lifeZone = document.getElementById("p-life-zone");
+        if(lifeZone.lastChild && lifeZone.lastChild.classList.contains("card")) {
+          lifeZone.lastChild.remove();
+          syncBoardToOpponent();
+        }
+      }
+    }
+
+    function updateGraveyardUI() {
+      const gyZone = document.getElementById("p-graveyard");
+      document.getElementById("gy-count").textContent = gameState.pGraveyard.length;
+      gyZone.querySelectorAll('.card').forEach(c => c.remove());
+      if(gameState.pGraveyard.length > 0) {
+        const topId = gameState.pGraveyard[gameState.pGraveyard.length - 1];
+        const cardData = getCardData(topId);
+        const cardType = (cardData.type || "").toUpperCase();
+
+        let typeClass = "";
+        if(cardType === "LORD") typeClass = "card-lord";
+        else if(cardType === "ELITE") typeClass = "card-elite";
+
+        const altClass = isAltArtCard(cardData, topId) ? "card-alt-art" : "";
+
+        const topCard = document.createElement("div");
+        topCard.className = `card ${typeClass} ${altClass}`;
+        topCard.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+        gyZone.appendChild(topCard);
+      }
+    }
+
+    function openGraveyardModal() {
+      document.getElementById("gy-modal-title").textContent = "💀 สุสานของเรา (Graveyard)";
+      const modal = document.getElementById("gy-modal");
+      const list = document.getElementById("gy-modal-list");
+      list.innerHTML = "";
+
+      gameState.pGraveyard.forEach((id, index) => {
+        const cardData = getCardData(id);
+        const cardType = (cardData.type || "").toUpperCase();
+
+        let typeClass = "";
+        if(cardType === "LORD") typeClass = "card-lord";
+        else if(cardType === "ELITE") typeClass = "card-elite";
+
+        const altClass = isAltArtCard(cardData, id) ? "card-alt-art" : "";
+        
+        const wrapper = document.createElement("div");
+        wrapper.className = "gy-card-wrapper";
+
+        const el = document.createElement("div");
+        el.className = `card ${typeClass} ${altClass}`;
+        el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+        el.onclick = () => zoomCard(id, el);
+
+        const actionBox = document.createElement("div");
+        actionBox.className = "gy-card-actions";
+
+        const btnZoom = document.createElement("button");
+        btnZoom.className = "btn-gy-action";
+        btnZoom.style.background = "#e0af68";
+        btnZoom.style.color = "#000";
+        btnZoom.textContent = "🔍 ดูรูปเต็ม";
+        btnZoom.onclick = () => zoomCard(id, el);
+
+        const btnHand = document.createElement("button");
+        btnHand.className = "btn-gy-action";
+        btnHand.textContent = "🖐️ ขึ้นมือ";
+        btnHand.onclick = () => moveFromGraveyard(index, 'hand');
+
+        const btnTopDeck = document.createElement("button");
+        btnTopDeck.className = "btn-gy-action";
+        btnTopDeck.textContent = "⬆️ บนสุดเด็ค";
+        btnTopDeck.onclick = () => moveFromGraveyard(index, 'topDeck');
+
+        const btnBottomDeck = document.createElement("button");
+        btnBottomDeck.className = "btn-gy-action";
+        btnBottomDeck.textContent = "⬇️ ใต้สุดเด็ค";
+        btnBottomDeck.onclick = () => moveFromGraveyard(index, 'bottomDeck');
+
+        actionBox.appendChild(btnZoom);
+        actionBox.appendChild(btnHand);
+        actionBox.appendChild(btnTopDeck);
+        actionBox.appendChild(btnBottomDeck);
+
+        wrapper.appendChild(el);
+        wrapper.appendChild(actionBox);
+        list.appendChild(wrapper);
+      });
+      modal.style.display = "flex";
+    }
+
+    function openOpponentGraveyardModal() {
+      document.getElementById("gy-modal-title").textContent = "💀 สุสานศัตรู (Opponent Graveyard)";
+      const modal = document.getElementById("gy-modal");
+      const list = document.getElementById("gy-modal-list");
+      list.innerHTML = "";
+
+      if(!gameState.oppGraveyard || gameState.oppGraveyard.length === 0) {
+        list.innerHTML = "<div style='color:#565f89; width:100%; text-align:center; padding:20px;'>ไม่มีการ์ดในสุสาน</div>";
+      } else {
+        gameState.oppGraveyard.forEach((id) => {
+          const cardData = getCardData(id);
+          const cardType = (cardData.type || "").toUpperCase();
+
+          let typeClass = "";
+          if(cardType === "LORD") typeClass = "card-lord";
+          else if(cardType === "ELITE") typeClass = "card-elite";
+
+          const altClass = isAltArtCard(cardData, id) ? "card-alt-art" : "";
+
+          const wrapper = document.createElement("div");
+          wrapper.className = "gy-card-wrapper";
+
+          const el = document.createElement("div");
+          el.className = `card ${typeClass} ${altClass}`;
+          el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+          el.onclick = () => zoomCard(id, el);
+
+          const btnZoom = document.createElement("button");
+          btnZoom.className = "btn-gy-action";
+          btnZoom.style.background = "#e0af68";
+          btnZoom.style.color = "#000";
+          btnZoom.style.marginTop = "4px";
+          btnZoom.textContent = "🔍 ดูรูปเต็ม";
+          btnZoom.onclick = () => zoomCard(id, el);
+
+          wrapper.appendChild(el);
+          wrapper.appendChild(btnZoom);
+          list.appendChild(wrapper);
+        });
+      }
+      modal.style.display = "flex";
+    }
+
+    function moveFromGraveyard(index, destination) {
+      const cardId = gameState.pGraveyard.splice(index, 1)[0];
+
+      if(destination === 'hand') {
+        gameState.pHand.push(cardId);
+        renderHand();
+      } else if(destination === 'topDeck') {
+        gameState.pMainDeck.push(cardId);
+        updateMainDeckUI();
+      } else if(destination === 'bottomDeck') {
+        gameState.pMainDeck.unshift(cardId);
+        updateMainDeckUI();
+      }
+
+      updateGraveyardUI();
+      openGraveyardModal();
+      syncBoardToOpponent();
+    }
+
+    function closeGraveyardModal() {
+      document.getElementById("gy-modal").style.display = "none";
+    }
+
+    function syncHandToOpponent() {
+      safeSend({ type: 'SYNC_HAND', count: gameState.pHand.length });
+    }
+
+    function renderOpponentHand(count) {
+      const container = document.getElementById("opponent-hand");
+      container.innerHTML = "";
+      for(let i = 0; i < count; i++) {
+        const el = document.createElement("div");
+        el.className = "card card-back";
+        container.appendChild(el);
+      }
+    }
+
+    function syncBoardToOpponent() {
+      if(!conn || conn.readyState !== WebSocket.OPEN) return;
+      const zones = ['p-battlefield', 'p-life-zone', 'p-nexus-zone', 'p-lord-zone', 'p-energy-zone'];
+      const boardState = {};
+
+      zones.forEach(zId => {
+        const zoneEl = document.getElementById(zId);
+        boardState[zId] = Array.from(zoneEl.querySelectorAll('.card')).map(card => ({
+          id: card.dataset.id || 'C001',
+          isFaceDown: card.classList.contains('card-back'),
+          isExhausted: card.classList.contains('exhausted'),
+          isEnergy: card.classList.contains('energy-card'),
+          isToken: card.dataset.isToken === "true"
+        }));
+      });
+
+      boardState['p-graveyard'] = gameState.pGraveyard;
+      boardState['mainDeckCount'] = gameState.pMainDeck.length;
+
+      safeSend({ type: 'SYNC_BOARD', boardState });
+    }
+
+    function renderOpponentBoard(boardState) {
+      const mapZones = {
+        'p-battlefield': 'opp-battlefield',
+        'p-life-zone': 'opp-life-zone',
+        'p-nexus-zone': 'opp-nexus-zone',
+        'p-lord-zone': 'opp-lord-zone',
+        'p-energy-zone': 'opp-energy-zone'
+      };
+
+      if(boardState['mainDeckCount'] !== undefined) {
+        document.getElementById("opp-deck-count").textContent = boardState['mainDeckCount'];
+      }
+
+      if(boardState['p-graveyard']) {
+        gameState.oppGraveyard = boardState['p-graveyard'];
+        const oppGyZone = document.getElementById("opp-graveyard");
+        oppGyZone.querySelectorAll('.card').forEach(c => c.remove());
+        if(gameState.oppGraveyard.length > 0) {
+          const topId = gameState.oppGraveyard[gameState.oppGraveyard.length - 1];
+          const cardData = getCardData(topId);
+          const cardType = (cardData.type || "").toUpperCase();
+
+          let typeClass = "";
+          if(cardType === "LORD") typeClass = "card-lord";
+          else if(cardType === "ELITE") typeClass = "card-elite";
+
+          const altClass = isAltArtCard(cardData, topId) ? "card-alt-art" : "";
+
+          const topCard = document.createElement("div");
+          topCard.className = `card ${typeClass} ${altClass}`;
+          topCard.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+          oppGyZone.appendChild(topCard);
+        }
+      }
+
+      Object.entries(boardState).forEach(([pZone, cards]) => {
+        if(pZone === 'p-graveyard' || pZone === 'mainDeckCount') return;
+
+        const oppZoneId = mapZones[pZone];
+        const zoneEl = document.getElementById(oppZoneId);
+        if(!zoneEl) return;
+        zoneEl.innerHTML = `<span class="zone-title">${oppZoneId.replace('opp-', '').toUpperCase()}</span>`;
+
+        cards.forEach(c => {
+          const el = document.createElement('div');
+          if(c.isEnergy) {
+            el.className = "card energy-card";
+            el.textContent = "ENERGY";
+          } else {
+            const cardData = getCardData(c.id);
+            const cardType = (cardData.type || "").toUpperCase();
+
+            let typeClass = "";
+            if(cardType === "LORD") typeClass = "card-lord";
+            else if(cardType === "ELITE") typeClass = "card-elite";
+
+            const altClass = isAltArtCard(cardData, c.id) ? "card-alt-art" : "";
+
+            el.className = `card ${typeClass} ${altClass} ${c.isFaceDown ? 'card-back' : ''} ${c.isToken ? 'token-card' : ''}`;
+            if(!c.isFaceDown) {
+              el.style.backgroundImage = `url('${IMAGE_BASE_URL}${cardData.img}')`;
+              el.onclick = () => zoomCard(c.id, el);
+            }
+          }
+          if(c.isExhausted) el.classList.add('exhausted');
+          zoneEl.appendChild(el);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
